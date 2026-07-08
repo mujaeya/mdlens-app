@@ -1,0 +1,776 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>MD Lens</title>
+<style>
+  :root {
+    --bg:#fbfbf9; --fg:#24292f; --muted:#6a737d; --line:#e2e2de;
+    --side:#f3f3ef; --accent:#2f6feb; --code:#f0f0ec; --th:#f4f4f0; --quote:#94a3b8;
+  }
+  @media (prefers-color-scheme: dark){
+    :root { --bg:#1f2125; --fg:#d7dae0; --muted:#8b929c; --line:#34373d;
+      --side:#26282d; --accent:#6ea8fe; --code:#2a2d33; --th:#2a2d33; --quote:#566072; }
+  }
+  *{box-sizing:border-box} html,body{height:100%;margin:0}
+  body{display:flex;background:var(--bg);color:var(--fg);font-size:14px;
+    font-family:"Segoe UI","Malgun Gothic","Apple SD Gothic Neo",sans-serif}
+  button{font:inherit;font-size:12px;color:var(--fg);background:var(--bg);
+    border:1px solid var(--line);border-radius:6px;padding:4px 8px;cursor:pointer}
+  button:hover{border-color:var(--accent);color:var(--accent)}
+  button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  /* sidebar */
+  #side{width:248px;min-width:248px;height:100%;overflow-y:auto;background:var(--side);
+    border-right:1px solid var(--line);padding:10px}
+  #side.hidden{display:none}
+  #side .btns{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+  #side h3{font-size:11px;letter-spacing:.06em;color:var(--muted);margin:14px 4px 5px;text-transform:uppercase}
+  .entry{display:flex;align-items:center;gap:5px;padding:3px 6px;border-radius:6px;
+    cursor:pointer;font-size:12.5px;word-break:break-all}
+  .entry:hover{background:var(--code)}
+  .entry .grow{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .entry .x{color:var(--muted);visibility:hidden;padding:0 3px}
+  .entry:hover .x{visibility:visible} .entry .x:hover{color:#d33}
+  .subfiles{margin-left:12px;border-left:1px solid var(--line);padding-left:4px}
+  .empty{color:var(--muted);font-size:11.5px;padding:2px 6px}
+  .clip{font-family:Consolas,monospace;font-size:11.5px}
+  /* main */
+  #main{flex:1;height:100%;display:flex;flex-direction:column;min-width:0;position:relative}
+  #topbar{display:flex;align-items:center;gap:6px;padding:7px 10px;
+    border-bottom:1px solid var(--line);flex-wrap:wrap}
+  #flash{font-size:12px;color:var(--accent);margin-left:auto}
+  #settings{position:absolute;top:42px;right:10px;z-index:20;background:var(--side);
+    border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:flex;
+    gap:8px;align-items:center;font-size:12px;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+  #settings select{font:inherit;font-size:12px;padding:3px 6px;border:1px solid var(--line);
+    border-radius:6px;background:var(--bg);color:var(--fg)}
+  #panes{flex:1;display:flex;min-height:0}
+  .pane{flex:1;display:flex;flex-direction:column;min-width:0;border-right:1px solid var(--line)}
+  .pane:last-child{border-right:0}
+  .pane.active{box-shadow:inset 0 2px 0 var(--accent)}
+  .phead{display:flex;align-items:flex-end;gap:6px;padding:4px 6px 0;font-size:12px;
+    color:var(--muted);border-bottom:1px solid var(--line);background:var(--side);min-height:28px}
+  .ptabs{display:flex;gap:2px;overflow-x:auto;flex:1;min-width:0}
+  .ptab{display:flex;align-items:center;gap:5px;padding:4px 8px;font-size:12px;max-width:190px;
+    border:1px solid var(--line);border-bottom:0;border-radius:6px 6px 0 0;
+    background:var(--bg);color:var(--muted);cursor:pointer;white-space:nowrap}
+  .ptab.on{background:var(--bg);color:var(--fg);border-color:var(--accent);border-bottom:2px solid var(--bg);margin-bottom:-1px}
+  .ptab .ptname{overflow:hidden;text-overflow:ellipsis}
+  .ptab .tx{color:var(--muted);font-size:10px;flex-shrink:0}
+  .ptab .tx:hover{color:#d33}
+  .pbody{flex:1;overflow-y:auto;position:relative}
+  .pview{max-width:820px;margin:0 auto;padding:22px 30px 60px;line-height:1.75}
+  .pedit{position:absolute;inset:0;width:100%;height:100%;border:0;outline:0;resize:none;
+    background:var(--bg);color:var(--fg);padding:20px 28px;
+    font-family:Consolas,"D2Coding",monospace;font-size:13.5px;line-height:1.6}
+  .pbody embed{width:100%;height:100%}
+  .drophint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    color:var(--muted);font-size:13px;pointer-events:none}
+  /* markdown */
+  .pview h1{font-size:1.6em;border-bottom:1px solid var(--line);padding-bottom:.25em}
+  .pview h2{font-size:1.3em;border-bottom:1px solid var(--line);padding-bottom:.2em;margin-top:1.5em}
+  .pview h3{font-size:1.12em;margin-top:1.3em}
+  .pview a{color:var(--accent);text-decoration:none} .pview a:hover{text-decoration:underline}
+  .pview code{background:var(--code);border-radius:4px;padding:.1em .35em;
+    font-family:Consolas,"D2Coding",monospace;font-size:.88em}
+  .pview pre.codeblock{background:var(--code);border-radius:8px;padding:12px 15px;overflow-x:auto;line-height:1.5}
+  .pview pre.codeblock code{background:none;padding:0}
+  .pview pre.frontmatter{color:var(--muted);font-size:.85em;border:1px dashed var(--line);
+    border-radius:8px;padding:9px 13px}
+  .pview blockquote{margin:1em 0;padding:.15em 1em;border-left:3px solid var(--quote);color:var(--muted)}
+  .pview table{border-collapse:collapse;margin:1em 0;display:block;overflow-x:auto;max-width:100%}
+  .pview th,.pview td{border:1px solid var(--line);padding:5px 11px;text-align:left}
+  .pview th{background:var(--th)}
+  .pview hr{border:0;border-top:1px solid var(--line);margin:1.8em 0}
+  .pview ul,.pview ol{padding-left:1.5em} .pview li{margin:.18em 0}
+  .pview em.img{color:var(--muted)}
+  .pview pre.plain{white-space:pre-wrap;font-family:Consolas,"D2Coding",monospace;font-size:13.5px;line-height:1.6}
+</style>
+</head>
+<body>
+
+<aside id="side">
+  <div class="btns">
+    <button id="btnNew" data-i18n="newFile" data-i18n-title="ttNew">New</button>
+    <button id="btnOpen" data-i18n="openFile" data-i18n-title="ttOpen">Open</button>
+    <button id="btnAddDir" data-i18n="addFolder">Add folder</button>
+    <button id="btnClip" data-i18n="saveClip" data-i18n-title="ttSaveClip">Save clip</button>
+  </div>
+  <h3 data-i18n="hFavs">Favorite folders</h3><div id="favList"></div>
+  <h3 data-i18n="hFreq">Frequent files</h3><div id="freqList"></div>
+  <h3 data-i18n="hRecent">Recent files</h3><div id="recentList"></div>
+  <h3><span data-i18n="hClips">Clipboard</span> <span style="text-transform:none" data-i18n="hClipsSub">(click to copy)</span></h3><div id="clipList"></div>
+</aside>
+
+<div id="main">
+  <div id="topbar">
+    <button id="btnSide" data-i18n-title="ttCollapse" title="Collapse">☰</button>
+    <span style="font-size:12px;color:var(--muted)" data-i18n="split">Split</span>
+    <button class="paneBtn" data-n="1">1</button>
+    <button class="paneBtn" data-n="2">2</button>
+    <button class="paneBtn" data-n="3">3</button>
+    <button id="btnFontDn">A−</button><button id="btnFontUp">A+</button>
+    <button id="btnPin" hidden data-i18n-title="ttPin" title="Pin">📌</button>
+    <button id="btnEdit" data-i18n-title="ttEdit" title="Edit">Edit</button>
+    <button id="btnSave" data-i18n="save" data-i18n-title="ttSave" title="Save" hidden>Save</button>
+    <button id="btnSettings" data-i18n-title="ttSettings" title="Settings">⚙</button>
+    <span id="flash"></span>
+  </div>
+  <div id="settings" hidden>
+    <label data-i18n="language">Language</label>
+    <select id="langSel"></select>
+  </div>
+  <div id="panes"></div>
+</div>
+
+<script type="module">
+/* ================= markdown parser ================= */
+const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+function inline(s){
+  const codes = [];
+  const S = String.fromCharCode(1); // 본문에 등장할 수 없는 센티널
+  s = s.replace(/`([^`]+)`/g, (m,c)=>{ codes.push(c); return S+(codes.length-1)+S; });
+  s = esc(s);
+  s = s.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<em class="img">[이미지: $1]</em>');
+  s = s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g,
+    (m,t,u)=>'<a href="'+u.replace(/"/g,'&quot;')+'" target="_blank" rel="noopener">'+t+'</a>');
+  s = s.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
+  s = s.replace(/(^|[\s(>])\*([^*\n]+)\*(?=[\s).,!?:;<]|$)/g,'$1<em>$2</em>');
+  s = s.replace(/~~([^~]+)~~/g,'<del>$1</del>');
+  s = s.replace(new RegExp(S+'([0-9]+)'+S,'g'),(m,n)=>'<code>'+esc(codes[+n] ?? m)+'</code>');
+  return s;
+}
+function splitRow(l){
+  l=l.trim(); if(l.startsWith('|')) l=l.slice(1); if(l.endsWith('|')) l=l.slice(0,-1);
+  return l.split('|').map(c=>c.trim());
+}
+function buildList(items){
+  const base=items[0].indent, tag=items[0].ordered?'ol':'ul';
+  let out=`<${tag}>`;
+  for(let k=0;k<items.length;k++){
+    if(items[k].indent>base){
+      let j=k; while(j<items.length&&items[j].indent>base) j++;
+      out=out.slice(0,-5)+buildList(items.slice(k,j))+'</li>'; k=j-1; continue;
+    }
+    let t=items[k].text;
+    const cb=t.match(/^\[( |x|X)\]\s+(.*)$/);
+    out+='<li>'+(cb?`<input type="checkbox" disabled${cb[1]!==' '?' checked':''}> `+inline(cb[2]):inline(t))+'</li>';
+  }
+  return out+`</${tag}>`;
+}
+function mdToHtml(src, isRoot=true){
+  const lines=src.replace(/\r\n?/g,'\n').split('\n'), html=[];
+  let i=0, m;
+  if(isRoot && lines[0]==='---'){
+    let j=1; while(j<lines.length&&lines[j]!=='---') j++;
+    if(j<lines.length){ html.push('<pre class="frontmatter">'+esc(lines.slice(1,j).join('\n'))+'</pre>'); i=j+1; }
+  }
+  while(i<lines.length){
+    const line=lines[i];
+    if(/^\s*$/.test(line)){ i++; continue; }
+    if(/^```/.test(line)){
+      const buf=[]; i++;
+      while(i<lines.length&&!/^```/.test(lines[i])) buf.push(lines[i++]);
+      i++; html.push('<pre class="codeblock"><code>'+esc(buf.join('\n'))+'</code></pre>'); continue;
+    }
+    if(m=line.match(/^(#{1,6})\s+(.*)/)){
+      const l=m[1].length;
+      html.push(`<h${l}>`+inline(m[2].replace(/\s#+\s*$/,''))+`</h${l}>`); i++; continue;
+    }
+    if(/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(line)){ html.push('<hr>'); i++; continue; }
+    if(/^>/.test(line)){
+      const buf=[]; while(i<lines.length&&/^>/.test(lines[i])) buf.push(lines[i++].replace(/^>\s?/,''));
+      html.push('<blockquote>'+mdToHtml(buf.join('\n'),false)+'</blockquote>'); continue;
+    }
+    if(line.includes('|') && i+1<lines.length
+       && /^[\s|:\-]+$/.test(lines[i+1]) && lines[i+1].includes('-') && lines[i+1].includes('|')){
+      const head=splitRow(line); i+=2; const body=[];
+      while(i<lines.length&&lines[i].includes('|')&&lines[i].trim()!==''){ body.push(splitRow(lines[i])); i++; }
+      html.push('<table><thead><tr>'+head.map(c=>'<th>'+inline(c)+'</th>').join('')+'</tr></thead><tbody>'
+        +body.map(r=>'<tr>'+r.map(c=>'<td>'+inline(c)+'</td>').join('')+'</tr>').join('')+'</tbody></table>');
+      continue;
+    }
+    if(/^(\s*)([-*+]|\d+\.)\s+/.test(line)){
+      const items=[];
+      while(i<lines.length&&(m=lines[i].match(/^(\s*)([-*+]|\d+\.)\s+(.*)$/))){
+        items.push({indent:m[1].replace(/\t/g,'  ').length, ordered:/\d/.test(m[2]), text:m[3]}); i++;
+      }
+      html.push(buildList(items)); continue;
+    }
+    const buf=[line]; i++;
+    while(i<lines.length&&lines[i].trim()!==''
+      &&!/^(#{1,6}\s|```|>|\s*([-*+]|\d+\.)\s)/.test(lines[i])&&!lines[i].includes('|')){
+      buf.push(lines[i]); i++;
+    }
+    html.push('<p>'+buf.map(inline).join('<br>')+'</p>');
+  }
+  return html.join('\n');
+}
+
+/* ================= storage ================= */
+const $=id=>document.getElementById(id);
+const hasFS='showOpenFilePicker' in window;
+const db=await new Promise((res,rej)=>{
+  const r=indexedDB.open('mdlens',1);
+  r.onupgradeneeded=()=>r.result.createObjectStore('kv');
+  r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);
+});
+const kvGet=k=>new Promise((res,rej)=>{const t=db.transaction('kv').objectStore('kv').get(k);
+  t.onsuccess=()=>res(t.result); t.onerror=()=>rej(t.error);});
+const kvSet=(k,v)=>new Promise((res,rej)=>{const t=db.transaction('kv','readwrite').objectStore('kv').put(v,k);
+  t.onsuccess=()=>res(); t.onerror=()=>rej(t.error);});
+
+let files=(await kvGet('files'))||[];        // {name, handle, count, last}
+let favs=(await kvGet('favs'))||[];          // {name, handle}
+let clips=(await kvGet('clips'))||[];        // {t, at}
+let fontSize=(await kvGet('fontSize'))||15;
+let paneCount=(await kvGet('paneCount'))||1;
+
+/* ================= i18n (7개국어) ================= */
+const I18N={
+ en:{newFile:"New",openFile:"Open",addFolder:"Add folder",saveClip:"Save clip",autoRec:"Auto-rec",edit:"Edit",view:"View",save:"Save",split:"Split",settings:"Settings",language:"Language",
+  ttNew:"New document (Ctrl+N)",ttOpen:"Open (Ctrl+O)",ttPin:"Keep window always on top",ttCollapse:"Collapse sidebar",ttSaveClip:"Save current clipboard to the list",ttEdit:"Edit (Ctrl+E)",ttSave:"Save (Ctrl+S)",ttSettings:"Settings",
+  hExplorer:"Explorer",hFavs:"Favorite folders",hFreq:"Frequent files",hRecent:"Recent files",hClips:"Clipboard",hClipsSub:"(click to copy)",
+  emptyFavs:"Add a folder",emptyFreq:"Files opened 2+ times show here",emptyRecent:"None yet",emptyClips:'Use "Save clip"',emptyDir:"Empty",reading:"Reading…",readFail:"Read failed",folderDenied:"Folder permission denied",noDocs:"No documents",
+  dropHint:"Drop md · txt · pdf · docx here",untitled:"Untitled.md",helpTitle:"Help.md",docxConverting:"Converting DOCX…",docxFail:"DOCX conversion failed (retry online).",
+  fSaved:"Saved ✓",fSaveFail:"Save failed",fCopied:"Copied ✓",fCopyFail:"Copy failed",fClipSaved:"Clip saved ✓",fClipEmpty:"Clipboard is empty",fClipDenied:"Clipboard read denied",fNewDoc:"New document — pick a location on save (Ctrl+S)",fDownloaded:"Saved via download",fPermDenied:"Permission denied",fFolderChrome:"Folder feature is Chrome/Edge only",fBrowserHint:"Open in Chrome/Edge for all features",fPinOn:"Always on top ✓",fPinOff:"Unpinned",fPinFail:"Pin failed",fOpenFail:"Open failed",fAutoOn:"Clipboard auto-record ON",fAutoOff:"Auto-record OFF"},
+ ko:{newFile:"새 파일",openFile:"파일 열기",addFolder:"폴더 추가",saveClip:"클립 저장",autoRec:"자동기록",edit:"편집",view:"보기",save:"저장",split:"분할",settings:"설정",language:"언어",
+  ttNew:"새 문서 (Ctrl+N)",ttOpen:"열기 (Ctrl+O)",ttPin:"창을 항상 위에 고정",ttCollapse:"사이드바 접기",ttSaveClip:"현재 클립보드를 목록에 저장",ttEdit:"편집 (Ctrl+E)",ttSave:"저장 (Ctrl+S)",ttSettings:"설정",
+  hExplorer:"탐색기",hFavs:"즐겨찾기 폴더",hFreq:"자주 여는 파일",hRecent:"최근 파일",hClips:"클립 메모",hClipsSub:"(클릭=복사)",
+  emptyFavs:"폴더 추가로 등록",emptyFreq:"2회 이상 연 파일이 표시됨",emptyRecent:"아직 없음",emptyClips:"클립 저장 버튼으로 담기",emptyDir:"비어 있음",reading:"읽는 중…",readFail:"읽기 실패",folderDenied:"폴더 권한 거부",noDocs:"문서 없음",
+  dropHint:"여기에 md · txt · pdf · docx 드롭",untitled:"제목 없음.md",helpTitle:"도움말.md",docxConverting:"DOCX 변환 중…",docxFail:"DOCX 변환 실패 (온라인에서 다시).",
+  fSaved:"저장됨 ✓",fSaveFail:"저장 실패",fCopied:"복사됨 ✓",fCopyFail:"복사 실패",fClipSaved:"클립 저장 ✓",fClipEmpty:"클립보드가 비어 있음",fClipDenied:"클립보드 읽기 권한 거부",fNewDoc:"새 문서 — 저장(Ctrl+S) 시 위치 지정",fDownloaded:"다운로드로 저장",fPermDenied:"권한이 거부되었습니다",fFolderChrome:"폴더 기능은 Chrome/Edge 전용",fBrowserHint:"Chrome/Edge에서 열면 모든 기능 사용 가능",fPinOn:"항상 위 고정 ✓",fPinOff:"고정 해제",fPinFail:"고정 실패",fOpenFail:"열기 실패",fAutoOn:"클립보드 자동 기록 켜짐",fAutoOff:"자동 기록 꺼짐"},
+ ja:{newFile:"新規",openFile:"開く",addFolder:"フォルダ追加",saveClip:"クリップ保存",autoRec:"自動記録",edit:"編集",view:"表示",save:"保存",split:"分割",settings:"設定",language:"言語",
+  ttNew:"新規文書 (Ctrl+N)",ttOpen:"開く (Ctrl+O)",ttPin:"ウィンドウを常に最前面",ttCollapse:"サイドバーを畳む",ttSaveClip:"現在のクリップボードを一覧に保存",ttEdit:"編集 (Ctrl+E)",ttSave:"保存 (Ctrl+S)",ttSettings:"設定",
+  hExplorer:"エクスプローラ",hFavs:"お気に入りフォルダ",hFreq:"よく開くファイル",hRecent:"最近のファイル",hClips:"クリップボード",hClipsSub:"(クリックでコピー)",
+  emptyFavs:"フォルダを追加",emptyFreq:"2回以上開いたファイル",emptyRecent:"まだありません",emptyClips:"「クリップ保存」で追加",emptyDir:"空",reading:"読み込み中…",readFail:"読み込み失敗",folderDenied:"フォルダ権限拒否",noDocs:"文書なし",
+  dropHint:"ここに md · txt · pdf · docx をドロップ",untitled:"無題.md",helpTitle:"ヘルプ.md",docxConverting:"DOCX変換中…",docxFail:"DOCX変換失敗（オンラインで再試行）。",
+  fSaved:"保存しました ✓",fSaveFail:"保存失敗",fCopied:"コピーしました ✓",fCopyFail:"コピー失敗",fClipSaved:"クリップ保存 ✓",fClipEmpty:"クリップボードが空",fClipDenied:"クリップボード読取拒否",fNewDoc:"新規文書 — 保存(Ctrl+S)で場所を指定",fDownloaded:"ダウンロードで保存",fPermDenied:"権限が拒否されました",fFolderChrome:"フォルダ機能はChrome/Edge限定",fBrowserHint:"Chrome/Edgeで全機能が使えます",fPinOn:"常に最前面 ✓",fPinOff:"固定解除",fPinFail:"固定失敗",fOpenFail:"開けません",fAutoOn:"クリップボード自動記録 ON",fAutoOff:"自動記録 OFF"},
+ zh:{newFile:"新建",openFile:"打开",addFolder:"添加文件夹",saveClip:"保存剪贴",autoRec:"自动记录",edit:"编辑",view:"查看",save:"保存",split:"分屏",settings:"设置",language:"语言",
+  ttNew:"新文档 (Ctrl+N)",ttOpen:"打开 (Ctrl+O)",ttPin:"窗口始终置顶",ttCollapse:"收起侧栏",ttSaveClip:"把当前剪贴板存入列表",ttEdit:"编辑 (Ctrl+E)",ttSave:"保存 (Ctrl+S)",ttSettings:"设置",
+  hExplorer:"资源管理器",hFavs:"收藏文件夹",hFreq:"常用文件",hRecent:"最近文件",hClips:"剪贴板",hClipsSub:"(点击复制)",
+  emptyFavs:"点“添加文件夹”",emptyFreq:"打开2次以上的文件",emptyRecent:"暂无",emptyClips:"用“保存剪贴”",emptyDir:"空",reading:"读取中…",readFail:"读取失败",folderDenied:"文件夹权限被拒",noDocs:"无文档",
+  dropHint:"拖放 md · txt · pdf · docx 到此",untitled:"未命名.md",helpTitle:"帮助.md",docxConverting:"DOCX转换中…",docxFail:"DOCX转换失败（联网重试）。",
+  fSaved:"已保存 ✓",fSaveFail:"保存失败",fCopied:"已复制 ✓",fCopyFail:"复制失败",fClipSaved:"已保存剪贴 ✓",fClipEmpty:"剪贴板为空",fClipDenied:"剪贴板读取被拒",fNewDoc:"新文档 — 保存(Ctrl+S)时选择位置",fDownloaded:"通过下载保存",fPermDenied:"权限被拒绝",fFolderChrome:"文件夹功能仅Chrome/Edge",fBrowserHint:"用Chrome/Edge打开可用全部功能",fPinOn:"已置顶 ✓",fPinOff:"取消置顶",fPinFail:"置顶失败",fOpenFail:"打开失败",fAutoOn:"剪贴板自动记录 开",fAutoOff:"自动记录 关"},
+ fr:{newFile:"Nouveau",openFile:"Ouvrir",addFolder:"Ajouter dossier",saveClip:"Sauver clip",autoRec:"Auto-enr.",edit:"Éditer",view:"Voir",save:"Enreg.",split:"Diviser",settings:"Paramètres",language:"Langue",
+  ttNew:"Nouveau document (Ctrl+N)",ttOpen:"Ouvrir (Ctrl+O)",ttPin:"Garder la fenêtre au premier plan",ttCollapse:"Réduire le panneau",ttSaveClip:"Enregistrer le presse-papiers dans la liste",ttEdit:"Éditer (Ctrl+E)",ttSave:"Enregistrer (Ctrl+S)",ttSettings:"Paramètres",
+  hExplorer:"Explorateur",hFavs:"Dossiers favoris",hFreq:"Fichiers fréquents",hRecent:"Fichiers récents",hClips:"Presse-papiers",hClipsSub:"(cliquer pour copier)",
+  emptyFavs:"Ajoutez un dossier",emptyFreq:"Fichiers ouverts 2+ fois",emptyRecent:"Aucun",emptyClips:"Via « Sauver clip »",emptyDir:"Vide",reading:"Lecture…",readFail:"Échec de lecture",folderDenied:"Accès au dossier refusé",noDocs:"Aucun document",
+  dropHint:"Déposez md · txt · pdf · docx ici",untitled:"Sans titre.md",helpTitle:"Aide.md",docxConverting:"Conversion DOCX…",docxFail:"Échec de conversion DOCX (réessayez en ligne).",
+  fSaved:"Enregistré ✓",fSaveFail:"Échec",fCopied:"Copié ✓",fCopyFail:"Échec de copie",fClipSaved:"Clip enregistré ✓",fClipEmpty:"Presse-papiers vide",fClipDenied:"Lecture du presse-papiers refusée",fNewDoc:"Nouveau — choisir l'emplacement à l'enregistrement (Ctrl+S)",fDownloaded:"Enregistré via téléchargement",fPermDenied:"Autorisation refusée",fFolderChrome:"Fonction dossier : Chrome/Edge uniquement",fBrowserHint:"Ouvrez dans Chrome/Edge pour tout",fPinOn:"Toujours au premier plan ✓",fPinOff:"Détaché",fPinFail:"Échec",fOpenFail:"Échec d'ouverture",fAutoOn:"Auto-enreg. presse-papiers ACTIVÉ",fAutoOff:"Auto-enreg. DÉSACTIVÉ"},
+ de:{newFile:"Neu",openFile:"Öffnen",addFolder:"Ordner",saveClip:"Clip sichern",autoRec:"Auto-Aufz.",edit:"Bearb.",view:"Ansicht",save:"Speichern",split:"Teilen",settings:"Einstellungen",language:"Sprache",
+  ttNew:"Neues Dokument (Strg+N)",ttOpen:"Öffnen (Strg+O)",ttPin:"Fenster immer im Vordergrund",ttCollapse:"Seitenleiste einklappen",ttSaveClip:"Zwischenablage in die Liste speichern",ttEdit:"Bearbeiten (Strg+E)",ttSave:"Speichern (Strg+S)",ttSettings:"Einstellungen",
+  hExplorer:"Explorer",hFavs:"Favoriten-Ordner",hFreq:"Häufige Dateien",hRecent:"Zuletzt geöffnet",hClips:"Zwischenablage",hClipsSub:"(Klick = kopieren)",
+  emptyFavs:"Ordner hinzufügen",emptyFreq:"2×+ geöffnete Dateien",emptyRecent:"Noch keine",emptyClips:'Über „Clip sichern"',emptyDir:"Leer",reading:"Lese…",readFail:"Lesefehler",folderDenied:"Ordnerzugriff verweigert",noDocs:"Keine Dokumente",
+  dropHint:"md · txt · pdf · docx hierher ziehen",untitled:"Unbenannt.md",helpTitle:"Hilfe.md",docxConverting:"DOCX wird konvertiert…",docxFail:"DOCX-Konvertierung fehlgeschlagen (online erneut).",
+  fSaved:"Gespeichert ✓",fSaveFail:"Fehler",fCopied:"Kopiert ✓",fCopyFail:"Kopierfehler",fClipSaved:"Clip gesichert ✓",fClipEmpty:"Zwischenablage leer",fClipDenied:"Lesen verweigert",fNewDoc:"Neu — Ort beim Speichern wählen (Strg+S)",fDownloaded:"Als Download gespeichert",fPermDenied:"Zugriff verweigert",fFolderChrome:"Ordnerfunktion nur Chrome/Edge",fBrowserHint:"In Chrome/Edge für alle Funktionen öffnen",fPinOn:"Immer oben ✓",fPinOff:"Gelöst",fPinFail:"Fehler",fOpenFail:"Öffnen fehlgeschlagen",fAutoOn:"Auto-Aufzeichnung AN",fAutoOff:"Auto-Aufzeichnung AUS"},
+ es:{newFile:"Nuevo",openFile:"Abrir",addFolder:"Añadir carpeta",saveClip:"Guardar clip",autoRec:"Auto-reg.",edit:"Editar",view:"Ver",save:"Guardar",split:"Dividir",settings:"Ajustes",language:"Idioma",
+  ttNew:"Nuevo documento (Ctrl+N)",ttOpen:"Abrir (Ctrl+O)",ttPin:"Mantener la ventana siempre visible",ttCollapse:"Contraer panel",ttSaveClip:"Guardar el portapapeles en la lista",ttEdit:"Editar (Ctrl+E)",ttSave:"Guardar (Ctrl+S)",ttSettings:"Ajustes",
+  hExplorer:"Explorador",hFavs:"Carpetas favoritas",hFreq:"Archivos frecuentes",hRecent:"Archivos recientes",hClips:"Portapapeles",hClipsSub:"(clic para copiar)",
+  emptyFavs:"Añade una carpeta",emptyFreq:"Archivos abiertos 2+ veces",emptyRecent:"Ninguno",emptyClips:'Usa "Guardar clip"',emptyDir:"Vacío",reading:"Leyendo…",readFail:"Error de lectura",folderDenied:"Permiso de carpeta denegado",noDocs:"Sin documentos",
+  dropHint:"Suelta md · txt · pdf · docx aquí",untitled:"Sin título.md",helpTitle:"Ayuda.md",docxConverting:"Convirtiendo DOCX…",docxFail:"Error de conversión DOCX (reintente en línea).",
+  fSaved:"Guardado ✓",fSaveFail:"Error al guardar",fCopied:"Copiado ✓",fCopyFail:"Error al copiar",fClipSaved:"Clip guardado ✓",fClipEmpty:"Portapapeles vacío",fClipDenied:"Lectura del portapapeles denegada",fNewDoc:"Nuevo — elige ubicación al guardar (Ctrl+S)",fDownloaded:"Guardado por descarga",fPermDenied:"Permiso denegado",fFolderChrome:"Función de carpeta solo Chrome/Edge",fBrowserHint:"Abre en Chrome/Edge para todo",fPinOn:"Siempre visible ✓",fPinOff:"Desfijado",fPinFail:"Error",fOpenFail:"Error al abrir",fAutoOn:"Auto-registro del portapapeles ACTIVADO",fAutoOff:"Auto-registro DESACTIVADO"}
+};
+const LANG_NAMES={ko:"한국어",en:"English",ja:"日本語",zh:"中文",fr:"Français",de:"Deutsch",es:"Español"};
+let curLang=(await kvGet('lang'))||((navigator.language||'en').slice(0,2));
+if(!I18N[curLang]) curLang='en';
+function t(k){ return (I18N[curLang]&&I18N[curLang][k]) ?? I18N.en[k] ?? k; }
+let refreshExtras=null;
+function applyLang(){
+  document.querySelectorAll('[data-i18n]').forEach(el=>{ el.textContent=t(el.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-title]').forEach(el=>{ el.title=t(el.dataset.i18nTitle); });
+  document.documentElement.lang=curLang;
+}
+function redrawAll(){
+  applyLang();
+  for(const p of panes){   // 열린 도움말 탭을 현재 언어로 갱신
+    let ch=false;
+    for(const tb of p.tabs){ if(tb.isHelp){ tb.name=t('helpTitle'); tb.raw=(HELPS[curLang]||HELPS.en); ch=true; } }
+    if(ch){ renderActive(p); renderTabbar(p); }
+  }
+  drawFavs(); drawLists(); drawClips(); syncEditBtn(); if(refreshExtras) refreshExtras();
+}
+async function setLang(l){ curLang=l; await kvSet('lang',l); redrawAll(); }
+
+function flash(msg){ $('flash').textContent=msg;
+  setTimeout(()=>{ if($('flash').textContent===msg) $('flash').textContent=''; },2200); }
+async function ensurePerm(h,mode='read'){
+  try{ if(await h.queryPermission({mode})==='granted') return true;
+    return (await h.requestPermission({mode}))==='granted'; }catch{ return false; }
+}
+
+/* ================= panes ================= */
+const panes=[];   // {el, view, edit, head, state:{name, handle, raw, kind, url, editing}}
+let active=0;
+
+function makePane(idx){
+  const el=document.createElement('div'); el.className='pane'; el.dataset.i=idx;
+  el.innerHTML=`<div class="phead"><div class="ptabs"></div></div>
+    <div class="pbody"><article class="pview"></article><textarea class="pedit" hidden spellcheck="false"></textarea>
+    <div class="drophint" data-i18n="dropHint">Drop md · txt · pdf · docx here</div></div>`;
+  el.addEventListener('click',()=>setActive(idx));
+  el.addEventListener('dragover',e=>e.preventDefault());
+  el.addEventListener('drop',e=>{ e.preventDefault(); e.stopPropagation(); setActive(idx); handleDrop(e); });
+  return { el, view:el.querySelector('.pview'), edit:el.querySelector('.pedit'),
+    tabbar:el.querySelector('.ptabs'), hint:el.querySelector('.drophint'),
+    tabs:[], active:-1 };
+}
+// tab = docState {name, kind, handle, tauriPath, raw, url, htmlCache, editing}
+function paneDoc(p){ return p.active>=0 ? p.tabs[p.active] : null; }
+function setActive(i){ active=i;
+  panes.forEach((p,k)=>p.el.classList.toggle('active',k===active));
+  syncEditBtn();
+}
+function renderTabbar(p){
+  p.tabbar.innerHTML='';
+  p.tabs.forEach((t,i)=>{
+    const tab=document.createElement('div'); tab.className='ptab'+(i===p.active?' on':''); tab.title=t.name;
+    const nm=document.createElement('span'); nm.className='ptname'; nm.textContent=t.name; tab.appendChild(nm);
+    const x=document.createElement('span'); x.className='tx'; x.textContent='✕';
+    x.onclick=e=>{ e.stopPropagation(); closeTab(p,i); }; tab.appendChild(x);
+    tab.onclick=()=>{ setActive(panes.indexOf(p)); activateTab(p,i); };
+    p.tabbar.appendChild(tab);
+  });
+}
+function activateTab(p,i){
+  const cur=paneDoc(p);
+  if(cur&&cur.editing) cur.raw=p.edit.value;   // 편집 중이던 탭 내용 보존
+  p.active=i; renderActive(p); renderTabbar(p); syncEditBtn();
+}
+function addTab(p,doc){
+  if(doc.tauriPath){   // 같은 파일 이미 열려 있으면 그 탭으로
+    const ex=p.tabs.findIndex(t=>t.tauriPath===doc.tauriPath);
+    if(ex>=0){ if(doc.url) URL.revokeObjectURL(doc.url); activateTab(p,ex); return; }
+  }
+  p.tabs.push(doc); activateTab(p,p.tabs.length-1);
+}
+function closeTab(p,i){
+  const t=p.tabs[i]; if(t&&t.url) URL.revokeObjectURL(t.url);
+  p.tabs.splice(i,1);
+  if(p.active>i) p.active--;
+  if(p.active>=p.tabs.length) p.active=p.tabs.length-1;
+  renderActive(p); renderTabbar(p); syncEditBtn();
+}
+function clearPane(i){   // 칸의 모든 탭 닫기
+  const p=panes[i];
+  p.tabs.forEach(t=>{ if(t.url) URL.revokeObjectURL(t.url); });
+  p.tabs=[]; p.active=-1; renderActive(p); renderTabbar(p); syncEditBtn();
+}
+function layoutPanes(n){
+  paneCount=n; kvSet('paneCount',n);
+  document.querySelectorAll('.paneBtn').forEach(b=>b.classList.toggle('on',+b.dataset.n===n));
+  const box=$('panes');
+  while(panes.length<n){ const p=makePane(panes.length); panes.push(p); box.appendChild(p.el); }
+  while(panes.length>n){ const p=panes.pop();
+    p.tabs.forEach(t=>{ if(t.url) URL.revokeObjectURL(t.url); }); p.el.remove(); }
+  if(active>=n) setActive(n-1); else setActive(active);
+  applyFont();
+}
+function applyFont(){ panes.forEach(p=>p.view.style.fontSize=fontSize+'px'); }
+
+function kindOf(name){
+  if(/\.(md|markdown)$/i.test(name)) return 'md';
+  if(/\.pdf$/i.test(name)) return 'pdf';
+  if(/\.docx?$/i.test(name)) return 'docx';
+  return 'txt';
+}
+function renderActive(p){
+  const em=p.el.querySelector('embed'); if(em) em.remove();
+  const s=paneDoc(p);
+  if(!s){ p.view.style.display=''; p.view.innerHTML=''; p.edit.hidden=true; p.hint.style.display=''; return; }
+  p.hint.style.display='none';
+  if(s.editing){ p.edit.value=s.raw; p.edit.hidden=false; p.view.style.display='none'; return; }
+  p.edit.hidden=true;
+  if(s.kind==='pdf'){
+    p.view.style.display='none';
+    const e=document.createElement('embed'); e.src=s.url; e.type='application/pdf';
+    p.el.querySelector('.pbody').appendChild(e);
+  } else if(s.kind==='docx'){
+    p.view.style.display=''; p.view.innerHTML=s.htmlCache||'<p style="color:var(--muted)">비어 있음</p>';
+  } else if(s.kind==='md'){
+    p.view.style.display=''; p.view.innerHTML=mdToHtml(s.raw);
+  } else {
+    p.view.style.display=''; p.view.innerHTML='<pre class="plain">'+esc(s.raw)+'</pre>';
+  }
+  p.view.parentElement.scrollTop=0;
+}
+
+let mammothLoading=null;
+function loadMammoth(){
+  if(window.mammoth) return Promise.resolve();
+  if(!mammothLoading) mammothLoading=new Promise((res,rej)=>{
+    const s=document.createElement('script');
+    s.src='https://unpkg.com/mammoth@1.8.0/mammoth.browser.min.js';
+    s.onload=res; s.onerror=()=>{mammothLoading=null; rej(new Error('offline'));};
+    document.head.appendChild(s);
+  });
+  return mammothLoading;
+}
+
+async function makeDoc(file, handle){   // File → docState (탭 1개 분량)
+  const name=file.name, kind=kindOf(name);
+  if(kind==='pdf')
+    return { name, kind, handle:handle||null, tauriPath:null, url:URL.createObjectURL(file), raw:'', editing:false };
+  if(kind==='docx'){
+    let html='<p style="color:var(--muted)">'+t('docxFail')+'</p>';
+    try{ await loadMammoth(); html=(await window.mammoth.convertToHtml({arrayBuffer:await file.arrayBuffer()})).value; }catch{}
+    return { name, kind, handle:handle||null, tauriPath:null, htmlCache:html, raw:'', editing:false };
+  }
+  return { name, kind, handle:handle||null, tauriPath:null, raw:await file.text(), editing:false };
+}
+async function openIntoPane(i, file, handle){
+  addTab(panes[i], await makeDoc(file, handle));
+  if(handle) await pushFile(handle, file.name);
+  setActive(i);
+}
+async function openHandle(h, paneIdx=active){
+  if(!await ensurePerm(h)){ flash(t('fPermDenied')); return; }
+  await openIntoPane(paneIdx, await h.getFile(), h);
+}
+
+/* ================= file log (recents + frequency) ================= */
+async function pushFile(handle, name){
+  let hit=null;
+  for(const f of files){ try{ if(await handle.isSameEntry(f.handle)){ hit=f; break; } }catch{} }
+  if(hit){ hit.count=(hit.count||1)+1; hit.last=Date.now(); hit.name=name; }
+  else files.push({name, handle, count:1, last:Date.now()});
+  files.sort((a,b)=>b.last-a.last); files=files.slice(0,25);
+  await kvSet('files',files); drawLists();
+}
+function entryEl(label,onOpen,onRemove,cls=''){
+  const div=document.createElement('div'); div.className='entry '+cls;
+  const sp=document.createElement('span'); sp.className='grow'; sp.textContent=label; div.appendChild(sp);
+  if(onRemove){ const x=document.createElement('span'); x.className='x'; x.textContent='✕';
+    x.onclick=e=>{e.stopPropagation();onRemove();}; div.appendChild(x); }
+  div.onclick=onOpen; return div;
+}
+function drawLists(){
+  const rec=$('recentList'); rec.innerHTML='';
+  if(!files.length) rec.innerHTML='<div class="empty">'+t('emptyRecent')+'</div>';
+  files.slice(0,12).forEach(f=>rec.appendChild(entryEl('📄 '+f.name,
+    ()=>openHandle(f.handle),
+    async()=>{ files=files.filter(x=>x!==f); await kvSet('files',files); drawLists(); })));
+  const fq=$('freqList'); fq.innerHTML='';
+  const top=[...files].filter(f=>(f.count||0)>=2).sort((a,b)=>b.count-a.count).slice(0,5);
+  if(!top.length) fq.innerHTML='<div class="empty">'+t('emptyFreq')+'</div>';
+  top.forEach(f=>fq.appendChild(entryEl(`⭐ ${f.name} (${f.count})`,()=>openHandle(f.handle))));
+}
+async function listDir(h,depth=0,acc=[],prefix=''){
+  if(acc.length>300) return acc;
+  for await(const [name,child] of h.entries()){
+    if(child.kind==='file'&&/\.(md|markdown|txt|pdf|docx?)$/i.test(name))
+      acc.push({label:prefix+name, handle:child});
+    else if(child.kind==='directory'&&depth<2&&!name.startsWith('.')
+      &&name!=='node_modules'&&name!=='dist')
+      await listDir(child,depth+1,acc,prefix+name+'/');
+  }
+  return acc;
+}
+// 디렉토리 트리: 한 단계씩 펼침(하위 폴더 클릭 시 확장). listDir(평면)과 달리 진짜 트리.
+async function renderDir(dirHandle, container){
+  container.innerHTML='<div class="empty">'+t('reading')+'</div>';
+  const dirs=[], docs=[];
+  try{
+    for await(const [name,child] of dirHandle.entries()){
+      if(child.kind==='directory'){
+        if(!name.startsWith('.')&&name!=='node_modules'&&name!=='dist') dirs.push([name,child]);
+      } else if(/\.(md|markdown|txt|pdf|docx?)$/i.test(name)) docs.push([name,child]);
+    }
+  }catch{ container.innerHTML='<div class="empty">'+t('readFail')+'</div>'; return; }
+  dirs.sort((a,b)=>a[0].localeCompare(b[0]));
+  docs.sort((a,b)=>a[0].localeCompare(b[0]));
+  container.innerHTML='';
+  if(!dirs.length&&!docs.length){ container.innerHTML='<div class="empty">'+t('emptyDir')+'</div>'; return; }
+  for(const [name,child] of dirs){
+    const sub=document.createElement('div'); sub.className='subfiles';
+    const node=entryEl('📁 '+name, async()=>{
+      if(sub.childNodes.length){ sub.innerHTML=''; return; }   // 다시 클릭 = 접기
+      if(!await ensurePerm(child)){ flash(t('folderDenied')); return; }
+      await renderDir(child, sub);
+    });
+    const w=document.createElement('div'); w.appendChild(node); w.appendChild(sub);
+    container.appendChild(w);
+  }
+  for(const [name,child] of docs)
+    container.appendChild(entryEl('📄 '+name, ()=>openHandle(child)));
+}
+function drawFavs(){
+  const box=$('favList'); box.innerHTML='';
+  if(!favs.length){ box.innerHTML='<div class="empty">'+t('emptyFavs')+'</div>'; return; }
+  favs.forEach((f,idx)=>{
+    const wrap=document.createElement('div');
+    const filesBox=document.createElement('div'); filesBox.className='subfiles';
+    const head=entryEl('📁 '+f.name, async()=>{
+      if(filesBox.childNodes.length){ filesBox.innerHTML=''; return; }
+      if(!await ensurePerm(f.handle)){ flash(t('folderDenied')); return; }
+      await renderDir(f.handle, filesBox);
+    }, async()=>{ favs.splice(idx,1); await kvSet('favs',favs); drawFavs(); });
+    wrap.appendChild(head); wrap.appendChild(filesBox); box.appendChild(wrap);
+  });
+}
+function newFile(){
+  addTab(panes[active], { name:t('untitled'), handle:null, tauriPath:null, raw:'', kind:'md', editing:false });
+  toggleEdit();  // 바로 편집 모드
+  flash(t('fNewDoc'));
+}
+function drawClips(){
+  const box=$('clipList'); box.innerHTML='';
+  if(!clips.length){ box.innerHTML='<div class="empty">'+t('emptyClips')+'</div>'; return; }
+  clips.forEach((c,idx)=>{
+    const label=c.t.replace(/\s+/g,' ').slice(0,42)+(c.t.length>42?'…':'');
+    box.appendChild(entryEl(label, async()=>{
+      try{ await navigator.clipboard.writeText(c.t); flash(t('fCopied')); }catch{ flash(t('fCopyFail')); }
+    }, async()=>{ clips.splice(idx,1); await kvSet('clips',clips); drawClips(); }, 'clip'));
+  });
+}
+
+/* ================= edit / save ================= */
+function syncEditBtn(){
+  const s=panes[active]?paneDoc(panes[active]):null;
+  const editable=s&&(s.kind==='md'||s.kind==='txt');
+  $('btnEdit').disabled=!editable;
+  $('btnEdit').textContent=s&&s.editing?t('view'):t('edit');
+  $('btnSave').hidden=!(s&&s.editing);
+}
+function toggleEdit(){
+  const p=panes[active], s=paneDoc(p);
+  if(!s||(s.kind!=='md'&&s.kind!=='txt')) return;
+  if(s.editing) s.raw=p.edit.value;   // 보기로 전환 전 편집 내용 반영
+  s.editing=!s.editing;
+  renderActive(p);
+  if(s.editing) p.edit.focus();
+  syncEditBtn();
+}
+async function save(){
+  const p=panes[active], s=paneDoc(p);
+  if(!s||!s.editing) return;
+  const text=p.edit.value;
+  if(s.tauriPath && window.__TAURI__){
+    try{
+      await window.__TAURI__.core.invoke('save_file',{path:s.tauriPath,content:text});
+      s.raw=text; flash(t('fSaved')); return;
+    }catch(e){ flash(t('fSaveFail')+': '+e); return; }
+  }
+  if(s.handle&&await ensurePerm(s.handle,'readwrite')){
+    const w=await s.handle.createWritable(); await w.write(text); await w.close();
+    s.raw=text; flash(t('fSaved'));
+  } else if('showSaveFilePicker' in window){
+    // 새 파일 or 핸들 없는 경우 = 다른 이름으로 저장(위치 지정)
+    try{
+      const h=await window.showSaveFilePicker({ suggestedName:s.name||t('untitled'),
+        types:[{description:'document',accept:{'text/markdown':['.md','.markdown'],'text/plain':['.txt']}}] });
+      const w=await h.createWritable(); await w.write(text); await w.close();
+      s.handle=h; s.name=h.name; s.raw=text;
+      renderTabbar(p);   // 탭 이름 갱신
+      await pushFile(h, h.name);
+      flash(t('fSaved'));
+    }catch{}
+  } else {
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob([text],{type:'text/plain'}));
+    a.download=s.name||t('untitled'); a.click();
+    s.raw=text; flash(t('fDownloaded'));
+  }
+}
+
+/* ================= events ================= */
+async function handleDrop(e){
+  const item=e.dataTransfer.items&&e.dataTransfer.items[0];
+  if(!item) return;
+  if(item.getAsFileSystemHandle){
+    const h=await item.getAsFileSystemHandle();
+    if(h&&h.kind==='file') await openHandle(h);
+  } else {
+    const f=item.getAsFile();
+    if(f) await openIntoPane(active,f,null);
+  }
+}
+addEventListener('dragover',e=>e.preventDefault());
+addEventListener('drop',e=>{ e.preventDefault(); handleDrop(e); });
+
+$('btnOpen').onclick=async()=>{
+  if(hasFS){
+    try{
+      const hs=await window.showOpenFilePicker({multiple:false,
+        types:[{description:'문서',accept:{'application/octet-stream':['.md','.markdown','.txt','.pdf','.docx']}}]});
+      await openHandle(hs[0]);
+    }catch{}
+  } else {
+    const inp=document.createElement('input'); inp.type='file';
+    inp.accept='.md,.markdown,.txt,.pdf,.docx';
+    inp.onchange=async()=>{ if(inp.files[0]) await openIntoPane(active,inp.files[0],null); };
+    inp.click();
+  }
+};
+$('btnAddDir').onclick=async()=>{
+  if(!('showDirectoryPicker' in window)){ flash(t('fFolderChrome')); return; }
+  try{ const h=await window.showDirectoryPicker();
+    favs.push({name:h.name,handle:h}); await kvSet('favs',favs); drawFavs(); }catch{}
+};
+$('btnClip').onclick=async()=>{
+  try{
+    const txt=await navigator.clipboard.readText();
+    if(txt&&txt.trim()){ clips.unshift({t:txt,at:Date.now()}); clips=clips.slice(0,50);
+      await kvSet('clips',clips); drawClips(); flash(t('fClipSaved')); }
+    else flash(t('fClipEmpty'));
+  }catch{ flash(t('fClipDenied')); }
+};
+$('btnNew').onclick=newFile;
+$('btnEdit').onclick=toggleEdit;
+$('btnSave').onclick=save;
+$('btnSide').onclick=()=>$('side').classList.toggle('hidden');
+$('btnFontUp').onclick=async()=>{ fontSize=Math.min(22,fontSize+1); applyFont(); await kvSet('fontSize',fontSize); };
+$('btnFontDn').onclick=async()=>{ fontSize=Math.max(12,fontSize-1); applyFont(); await kvSet('fontSize',fontSize); };
+document.querySelectorAll('.paneBtn').forEach(b=>b.onclick=()=>layoutPanes(+b.dataset.n));
+// 설정: 언어 선택
+const langSel=$('langSel');
+for(const code of ['ko','en','ja','zh','fr','de','es']){
+  const o=document.createElement('option'); o.value=code; o.textContent=LANG_NAMES[code];
+  if(code===curLang) o.selected=true; langSel.appendChild(o);
+}
+langSel.onchange=()=>setLang(langSel.value);
+$('btnSettings').onclick=()=>{ $('settings').hidden=!$('settings').hidden; };
+document.addEventListener('click',e=>{
+  if(!$('settings').hidden && !$('settings').contains(e.target) && e.target!==$('btnSettings'))
+    $('settings').hidden=true;
+});
+addEventListener('keydown',e=>{
+  if(e.ctrlKey&&e.key==='s'){ e.preventDefault(); save(); }
+  if(e.ctrlKey&&e.key==='e'){ e.preventDefault(); toggleEdit(); }
+  if(e.ctrlKey&&e.key==='o'){ e.preventDefault(); $('btnOpen').click(); }
+  if(e.ctrlKey&&e.key==='n'){ e.preventDefault(); newFile(); }
+});
+
+/* ================= boot ================= */
+const HELPS={
+ en:`# MD Lens\n\nLightweight local document viewer.\n\n## Shortcuts\n\n| Action | How |\n|---|---|\n| New / Open | \`Ctrl+N\` / \`Ctrl+O\` · or **drag & drop** onto a pane |\n| Edit → Save | \`Ctrl+E\` → \`Ctrl+S\` |\n| Split | **1 / 2 / 3** at top — each pane has its own **tabs** |\n| Formats | md · txt (render/edit), pdf, docx |\n| Explorer *(app only)* | browse drives/folders in the left panel |\n| Clipboard auto-record *(app only)* | toggle next to "Save clip" |\n| Language | ⚙ top-right |\n`,
+ ko:`# MD Lens\n\n가벼운 로컬 문서 뷰어.\n\n## 단축키\n\n| 동작 | 방법 |\n|---|---|\n| 새 파일 / 열기 | \`Ctrl+N\` / \`Ctrl+O\` · 또는 칸에 **드래그&드롭** |\n| 편집 → 저장 | \`Ctrl+E\` → \`Ctrl+S\` |\n| 분할 | 상단 **1 / 2 / 3** — 칸마다 **탭** 있음 |\n| 형식 | md · txt (렌더/편집), pdf, docx |\n| 탐색기 *(앱 전용)* | 왼쪽 패널에서 드라이브/폴더 탐색 |\n| 클립보드 자동기록 *(앱 전용)* | "클립 저장" 옆 토글 |\n| 언어 | 오른쪽 위 ⚙ |\n`,
+ ja:`# MD Lens\n\n軽量なローカル文書ビューア。\n\n## ショートカット\n\n| 操作 | 方法 |\n|---|---|\n| 新規 / 開く | \`Ctrl+N\` / \`Ctrl+O\` · またはペインに**ドラッグ&ドロップ** |\n| 編集 → 保存 | \`Ctrl+E\` → \`Ctrl+S\` |\n| 分割 | 上部 **1 / 2 / 3** — 各ペインに**タブ** |\n| 形式 | md · txt (表示/編集), pdf, docx |\n| エクスプローラ *(アプリのみ)* | 左パネルでドライブ/フォルダ探索 |\n| クリップボード自動記録 *(アプリのみ)* | 「クリップ保存」隣のトグル |\n| 言語 | 右上 ⚙ |\n`,
+ zh:`# MD Lens\n\n轻量本地文档查看器。\n\n## 快捷键\n\n| 操作 | 方法 |\n|---|---|\n| 新建 / 打开 | \`Ctrl+N\` / \`Ctrl+O\` · 或**拖放**到分屏 |\n| 编辑 → 保存 | \`Ctrl+E\` → \`Ctrl+S\` |\n| 分屏 | 顶部 **1 / 2 / 3** — 每个分屏有**标签页** |\n| 格式 | md · txt (渲染/编辑), pdf, docx |\n| 资源管理器 *(仅应用)* | 在左栏浏览驱动器/文件夹 |\n| 剪贴板自动记录 *(仅应用)* | "保存剪贴"旁的开关 |\n| 语言 | 右上角 ⚙ |\n`,
+ fr:`# MD Lens\n\nVisionneuse de documents locale et légère.\n\n## Raccourcis\n\n| Action | Comment |\n|---|---|\n| Nouveau / Ouvrir | \`Ctrl+N\` / \`Ctrl+O\` · ou **glisser-déposer** |\n| Éditer → Enreg. | \`Ctrl+E\` → \`Ctrl+S\` |\n| Diviser | **1 / 2 / 3** en haut — chaque volet a ses **onglets** |\n| Formats | md · txt (rendu/édition), pdf, docx |\n| Explorateur *(app)* | parcourir disques/dossiers à gauche |\n| Auto-enreg. presse-papiers *(app)* | bouton près de « Sauver clip » |\n| Langue | ⚙ en haut à droite |\n`,
+ de:`# MD Lens\n\nLeichter lokaler Dokument-Viewer.\n\n## Tastenkürzel\n\n| Aktion | Wie |\n|---|---|\n| Neu / Öffnen | \`Strg+N\` / \`Strg+O\` · oder **Ziehen & Ablegen** |\n| Bearb. → Speichern | \`Strg+E\` → \`Strg+S\` |\n| Teilen | **1 / 2 / 3** oben — jedes Feld hat eigene **Tabs** |\n| Formate | md · txt (Anzeige/Bearb.), pdf, docx |\n| Explorer *(App)* | Laufwerke/Ordner links durchsuchen |\n| Zwischenablage-Auto *(App)* | Schalter neben „Clip sichern" |\n| Sprache | ⚙ oben rechts |\n`,
+ es:`# MD Lens\n\nVisor de documentos local y ligero.\n\n## Atajos\n\n| Acción | Cómo |\n|---|---|\n| Nuevo / Abrir | \`Ctrl+N\` / \`Ctrl+O\` · o **arrastrar y soltar** |\n| Editar → Guardar | \`Ctrl+E\` → \`Ctrl+S\` |\n| Dividir | **1 / 2 / 3** arriba — cada panel tiene **pestañas** |\n| Formatos | md · txt (render/edición), pdf, docx |\n| Explorador *(app)* | explora discos/carpetas a la izquierda |\n| Auto-registro portapapeles *(app)* | botón junto a "Guardar clip" |\n| Idioma | ⚙ arriba a la derecha |\n`
+};
+layoutPanes(paneCount);
+applyLang();
+drawFavs(); drawLists(); drawClips();
+addTab(panes[0], {name:t('helpTitle'),handle:null,tauriPath:null,raw:(HELPS[curLang]||HELPS.en),kind:'md',editing:false,isHelp:true});
+setActive(0);
+if(!hasFS) flash(t('fBrowserHint'));
+
+/* ---------- Tauri 네이티브 앱 모드 (브라우저에선 window.__TAURI__ 없음 → 스킵) ---------- */
+const T = window.__TAURI__;
+if (T){
+  // 1) 항상 위 고정
+  const pin = $('btnPin'); pin.hidden = false;
+  let pinned = false;
+  pin.onclick = async () => {
+    pinned = !pinned;
+    try{
+      await T.window.getCurrentWindow().setAlwaysOnTop(pinned);
+      pin.classList.toggle('on', pinned);
+      flash(pinned ? t('fPinOn') : t('fPinOff'));
+    }catch(e){ flash(t('fPinFail')+': ' + e); }
+  };
+
+  // 2) 더블클릭/연결 프로그램으로 연 파일 자동 로드
+  try{
+    const lf = await T.core.invoke('launch_file');
+    if (lf){
+      setActive(0);
+      addTab(panes[0], { name: lf.name, handle: null, tauriPath: lf.path,
+        raw: lf.content, kind: kindOf(lf.name), editing: false });
+    }
+  }catch{}
+
+  // 3) 내장 파일 탐색기 (네이티브만 — 드라이브/폴더를 앱 안에서 직접 탐색)
+  function b64ToArrayBuffer(b64){
+    const bin=atob(b64), len=bin.length, bytes=new Uint8Array(len);
+    for(let i=0;i<len;i++) bytes[i]=bin.charCodeAt(i);
+    return bytes.buffer;
+  }
+  async function openNativePath(path, name){
+    const kind=kindOf(name), p=panes[active];
+    try{
+      let doc;
+      if(kind==='md'||kind==='txt'){
+        doc={ name, kind, handle:null, tauriPath:path, raw:await T.core.invoke('read_text_at',{path}), editing:false };
+      } else if(kind==='pdf'){
+        const url=URL.createObjectURL(new Blob([b64ToArrayBuffer(await T.core.invoke('read_bytes_at',{path}))],{type:'application/pdf'}));
+        doc={ name, kind, handle:null, tauriPath:path, url, raw:'', editing:false };
+      } else if(kind==='docx'){
+        let html='<p style="color:var(--muted)">'+t('docxFail')+'</p>';
+        try{ await loadMammoth(); html=(await window.mammoth.convertToHtml({arrayBuffer:b64ToArrayBuffer(await T.core.invoke('read_bytes_at',{path}))})).value; }catch{}
+        doc={ name, kind, handle:null, tauriPath:path, htmlCache:html, raw:'', editing:false };
+      } else return;
+      addTab(p, doc);
+    }catch(e){ flash(t('fOpenFail')+': '+e); }
+  }
+  async function drawExplorer(container, path){
+    container.innerHTML='<div class="empty">'+t('reading')+'</div>';
+    let entries;
+    try{ entries=await T.core.invoke('read_dir',{path}); }
+    catch{ container.innerHTML='<div class="empty">'+t('readFail')+'</div>'; return; }
+    container.innerHTML='';
+    if(!entries.length){ container.innerHTML='<div class="empty">'+t('emptyDir')+'</div>'; return; }
+    for(const en of entries){
+      if(en.is_dir){
+        const sub=document.createElement('div'); sub.className='subfiles';
+        const node=entryEl('📁 '+en.name, async()=>{
+          if(sub.childNodes.length){ sub.innerHTML=''; return; }
+          await drawExplorer(sub, en.path);
+        });
+        const w=document.createElement('div'); w.appendChild(node); w.appendChild(sub);
+        container.appendChild(w);
+      } else {
+        container.appendChild(entryEl('📄 '+en.name, ()=>openNativePath(en.path, en.name)));
+      }
+    }
+  }
+  // 사이드바 최상단에 탐색기 섹션 삽입
+  const side=$('side'), anchor=side.children[1];
+  const expH=document.createElement('h3'); expH.dataset.i18n='hExplorer'; expH.textContent=t('hExplorer');
+  const expBox=document.createElement('div'); expBox.id='explorer';
+  side.insertBefore(expH, anchor); side.insertBefore(expBox, anchor);
+  (async()=>{
+    let drives=[];
+    try{ drives=await T.core.invoke('list_drives'); }catch{}
+    expBox.innerHTML='';
+    for(const d of drives){
+      const sub=document.createElement('div'); sub.className='subfiles';
+      const node=entryEl('💽 '+d, async()=>{
+        if(sub.childNodes.length){ sub.innerHTML=''; return; }
+        await drawExplorer(sub, d);
+      });
+      const w=document.createElement('div'); w.appendChild(node); w.appendChild(sub);
+      expBox.appendChild(w);
+    }
+  })();
+
+  // 4) 클립보드 자동 기록 (복사할 때마다 자동으로 목록에 쌓임 — on/off 토글, 기본 꺼짐)
+  let clipWatch = (await kvGet('clipWatch')) || false;
+  const cwBtn = document.createElement('button');
+  cwBtn.style.cssText = 'font-size:11px';
+  const cwLabel = () => { cwBtn.textContent = t('autoRec')+(clipWatch?' ▶':' ⏸'); cwBtn.classList.toggle('on', clipWatch); };
+  $('btnClip').after(cwBtn); cwLabel();
+  refreshExtras = cwLabel;   // 언어 변경 시 라벨 갱신
+  try{ await T.core.invoke('set_clip_watch', { on: clipWatch }); }catch{}
+  cwBtn.onclick = async () => {
+    clipWatch = !clipWatch;
+    await kvSet('clipWatch', clipWatch);
+    try{ await T.core.invoke('set_clip_watch', { on: clipWatch }); }catch{}
+    cwLabel(); flash(clipWatch ? t('fAutoOn') : t('fAutoOff'));
+  };
+  try{
+    await T.event.listen('clip-added', ev => {
+      const txt = ev.payload; if(!txt || !txt.trim()) return;
+      if(clips[0] && clips[0].t === txt) return;   // 연속 중복 제외
+      clips.unshift({ t:txt, at: Date.now() }); clips = clips.slice(0, 50);
+      kvSet('clips', clips); drawClips();
+    });
+  }catch{}
+}
+</script>
+</body>
+</html>

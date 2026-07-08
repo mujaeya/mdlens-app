@@ -1,0 +1,9 @@
+{
+  "identifier": "default",
+  "description": "mdview default window capabilities",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-set-always-on-top"
+  ]
+}

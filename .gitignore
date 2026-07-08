@@ -1,0 +1,19 @@
+# dependencies
+node_modules/
+
+# rust / tauri build output
+src-tauri/target/
+
+# generated frontend (built from mdlens.html via `npm run sync`)
+dist/
+
+# icon working file
+icon-src.png
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.log
+
+# tauri generated
+src-tauri/gen/schemas/

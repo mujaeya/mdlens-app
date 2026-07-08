@@ -1,0 +1,12 @@
+{
+  "name": "mdlens-app",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "sync": "node -e \"require('fs').mkdirSync('dist',{recursive:true});require('fs').copyFileSync('mdlens.html','dist/index.html');console.log('synced mdlens.html -> dist/index.html')\"",
+    "tauri": "tauri"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.1.0"
+  }
+}

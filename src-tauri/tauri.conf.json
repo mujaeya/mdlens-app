@@ -1,0 +1,42 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "MD Lens",
+  "version": "0.1.0",
+  "identifier": "com.hong.mdlens",
+  "build": {
+    "beforeBuildCommand": "npm run sync",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "MD Lens",
+        "width": 1150,
+        "height": 780,
+        "minWidth": 420,
+        "minHeight": 320,
+        "dragDropEnabled": false
+      }
+    ]
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "icon": ["icons/icon.ico", "icons/32x32.png", "icons/128x128.png"],
+    "fileAssociations": [
+      {
+        "ext": ["md", "markdown"],
+        "name": "Markdown",
+        "description": "Markdown document",
+        "role": "Viewer"
+      },
+      {
+        "ext": ["txt"],
+        "name": "PlainText",
+        "description": "Text document",
+        "role": "Viewer"
+      }
+    ]
+  }
+}
