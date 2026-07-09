@@ -44,6 +44,10 @@
     gap:8px;align-items:center;font-size:12px;box-shadow:0 6px 20px rgba(0,0,0,.25)}
   #settings select{font:inherit;font-size:12px;padding:3px 6px;border:1px solid var(--line);
     border-radius:6px;background:var(--bg);color:var(--fg)}
+  #trbox{position:fixed;z-index:30;max-width:340px;background:var(--side);border:1px solid var(--line);
+    border-radius:8px;padding:6px 8px;font-size:12.5px;box-shadow:0 6px 20px rgba(0,0,0,.28)}
+  #trbox button{font-size:11.5px}
+  #trbox .trres{white-space:pre-wrap;line-height:1.5;max-height:200px;overflow:auto;color:var(--fg)}
   #panes{flex:1;display:flex;min-height:0}
   .pane{flex:1;display:flex;flex-direction:column;min-width:0;border-right:1px solid var(--line)}
   .pane:last-child{border-right:0}
@@ -273,6 +277,8 @@ const I18N={
   fSaved:"Guardado ✓",fSaveFail:"Error al guardar",fCopied:"Copiado ✓",fCopyFail:"Error al copiar",fClipSaved:"Clip guardado ✓",fClipEmpty:"Portapapeles vacío",fClipDenied:"Lectura del portapapeles denegada",fNewDoc:"Nuevo — elige ubicación al guardar (Ctrl+S)",fDownloaded:"Guardado por descarga",fPermDenied:"Permiso denegado",fFolderChrome:"Función de carpeta solo Chrome/Edge",fBrowserHint:"Abre en Chrome/Edge para todo",fPinOn:"Siempre visible ✓",fPinOff:"Desfijado",fPinFail:"Error",fOpenFail:"Error al abrir",fAutoOn:"Auto-registro del portapapeles ACTIVADO",fAutoOff:"Auto-registro DESACTIVADO"}
 };
 const LANG_NAMES={ko:"한국어",en:"English",ja:"日本語",zh:"中文",fr:"Français",de:"Deutsch",es:"Español"};
+const _TR={ko:["번역","번역 실패"],en:["Translate","Translation failed"],ja:["翻訳","翻訳失敗"],zh:["翻译","翻译失败"],fr:["Traduire","Échec de traduction"],de:["Übersetzen","Übersetzung fehlgeschlagen"],es:["Traducir","Error de traducción"]};
+for(const _k in _TR){ I18N[_k].translate=_TR[_k][0]; I18N[_k].trFail=_TR[_k][1]; }
 let curLang=(await kvGet('lang'))||((navigator.language||'en').slice(0,2));
 if(!I18N[curLang]) curLang='en';
 function t(k){ return (I18N[curLang]&&I18N[curLang][k]) ?? I18N.en[k] ?? k; }
@@ -459,7 +465,7 @@ function drawLists(){
 async function listDir(h,depth=0,acc=[],prefix=''){
   if(acc.length>300) return acc;
   for await(const [name,child] of h.entries()){
-    if(child.kind==='file'&&/\.(md|markdown|txt|pdf|docx?)$/i.test(name))
+    if(child.kind==='file'&&/\.(md|markdown|txt|pdf|docx?|rtf|json|jsonc|ya?ml|toml|ini|conf|config|env|xml|csv|tsv|log|m?[jt]sx?|cjs|vue|svelte|py|rs|go|rb|php|java|c|h|cpp|hpp|cs|swift|kt|lua|pl|r|dart|html?|css|s[ca]ss|less|sh|bash|zsh|ps1|bat|cmd|sql|gitignore|gitattributes|dockerignore|editorconfig|properties|gradle)$/i.test(name))
       acc.push({label:prefix+name, handle:child});
     else if(child.kind==='directory'&&depth<2&&!name.startsWith('.')
       &&name!=='node_modules'&&name!=='dist')
@@ -475,7 +481,7 @@ async function renderDir(dirHandle, container){
     for await(const [name,child] of dirHandle.entries()){
       if(child.kind==='directory'){
         if(!name.startsWith('.')&&name!=='node_modules'&&name!=='dist') dirs.push([name,child]);
-      } else if(/\.(md|markdown|txt|pdf|docx?)$/i.test(name)) docs.push([name,child]);
+      } else if(/\.(md|markdown|txt|pdf|docx?|rtf|json|jsonc|ya?ml|toml|ini|conf|config|env|xml|csv|tsv|log|m?[jt]sx?|cjs|vue|svelte|py|rs|go|rb|php|java|c|h|cpp|hpp|cs|swift|kt|lua|pl|r|dart|html?|css|s[ca]ss|less|sh|bash|zsh|ps1|bat|cmd|sql|gitignore|gitattributes|dockerignore|editorconfig|properties|gradle)$/i.test(name)) docs.push([name,child]);
     }
   }catch{ container.innerHTML='<div class="empty">'+t('readFail')+'</div>'; return; }
   dirs.sort((a,b)=>a[0].localeCompare(b[0]));
@@ -589,16 +595,17 @@ async function handleDrop(e){
 addEventListener('dragover',e=>e.preventDefault());
 addEventListener('drop',e=>{ e.preventDefault(); handleDrop(e); });
 
+const OPEN_EXTS=['.md','.markdown','.txt','.pdf','.docx','.doc','.rtf','.json','.jsonc','.yml','.yaml','.toml','.ini','.conf','.config','.env','.xml','.csv','.tsv','.log','.js','.mjs','.cjs','.ts','.tsx','.jsx','.vue','.svelte','.py','.rs','.go','.rb','.php','.java','.c','.h','.cpp','.hpp','.cs','.swift','.kt','.lua','.pl','.r','.dart','.html','.htm','.css','.scss','.sass','.less','.sh','.bash','.zsh','.ps1','.bat','.cmd','.sql','.gitignore','.gitattributes','.dockerignore','.editorconfig','.properties','.gradle'];
 $('btnOpen').onclick=async()=>{
   if(hasFS){
     try{
       const hs=await window.showOpenFilePicker({multiple:false,
-        types:[{description:'문서',accept:{'application/octet-stream':['.md','.markdown','.txt','.pdf','.docx']}}]});
+        types:[{description:'document / code',accept:{'text/plain':OPEN_EXTS}}], excludeAcceptAllOption:false});
       await openHandle(hs[0]);
     }catch{}
   } else {
     const inp=document.createElement('input'); inp.type='file';
-    inp.accept='.md,.markdown,.txt,.pdf,.docx';
+    inp.accept=OPEN_EXTS.join(',');
     inp.onchange=async()=>{ if(inp.files[0]) await openIntoPane(active,inp.files[0],null); };
     inp.click();
   }
@@ -770,6 +777,32 @@ if (T){
       kvSet('clips', clips); drawClips();
     });
   }catch{}
+
+  // 5) 빠른 번역 (선택 시에만 뜨는 작은 박스 — 온라인, 현재 UI 언어로. 로컬퍼스트라 비중 약함)
+  const trBox=document.createElement('div'); trBox.id='trbox'; trBox.hidden=true; document.body.appendChild(trBox);
+  const hideTr=()=>{ trBox.hidden=true; };
+  document.addEventListener('scroll',hideTr,true);
+  document.addEventListener('mousedown',e=>{ if(!trBox.contains(e.target)) hideTr(); });
+  document.addEventListener('mouseup',e=>{
+    if(trBox.contains(e.target)) return;
+    setTimeout(()=>{
+      const sel=(window.getSelection&&window.getSelection().toString()||'').trim();
+      if(!sel || sel.length>1500 || (e.target.closest && e.target.closest('.pedit'))){ hideTr(); return; }
+      trBox.innerHTML='';
+      const btn=document.createElement('button');
+      btn.textContent='🌐 '+t('translate');
+      btn.onclick=async()=>{
+        btn.textContent='🌐 …';
+        try{ const r=await T.core.invoke('translate_text',{text:sel,target:curLang});
+          trBox.innerHTML='<div class="trres">'+esc(r)+'</div>'; }
+        catch{ trBox.innerHTML='<div class="trres">'+t('trFail')+'</div>'; }
+      };
+      trBox.appendChild(btn);
+      trBox.style.left=Math.min(e.clientX, window.innerWidth-350)+'px';
+      trBox.style.top=(e.clientY+10)+'px';
+      trBox.hidden=false;
+    },10);
+  });
 }
 </script>
 </body>

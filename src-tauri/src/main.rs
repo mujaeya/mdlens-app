@@ -60,7 +60,31 @@ fn list_drives() -> Vec<String> {
     out
 }
 
-/// 내장 탐색기: 폴더 하위의 하위폴더 + 문서(md/txt/pdf/docx)를 반환. 폴더 먼저, 이름순.
+/// 문서 + 코드/설정 텍스트 파일 판정. (dotfile .env/.gitignore 등 + 확장자 없는 흔한 텍스트 포함)
+fn is_openable(name: &str) -> bool {
+    let l = name.to_lowercase();
+    const EXTS: &[&str] = &[
+        ".md", ".markdown", ".txt", ".pdf", ".docx", ".doc", ".rtf",
+        ".json", ".jsonc", ".yml", ".yaml", ".toml", ".ini", ".conf", ".config", ".env",
+        ".xml", ".csv", ".tsv", ".log", ".properties", ".gradle",
+        ".js", ".mjs", ".cjs", ".ts", ".tsx", ".jsx", ".vue", ".svelte",
+        ".py", ".rs", ".go", ".rb", ".php", ".java", ".c", ".h", ".cpp", ".hpp", ".cc",
+        ".cs", ".swift", ".kt", ".kts", ".lua", ".pl", ".r", ".dart", ".scala",
+        ".html", ".htm", ".css", ".scss", ".sass", ".less",
+        ".sh", ".bash", ".zsh", ".ps1", ".bat", ".cmd", ".sql",
+        ".gitignore", ".gitattributes", ".dockerignore", ".editorconfig", ".npmrc",
+    ];
+    if EXTS.iter().any(|e| l.ends_with(e)) {
+        return true;
+    }
+    const NOEXT: &[&str] = &[
+        "dockerfile", "makefile", "license", "readme", "changelog", "notice",
+        ".env", ".gitignore", ".prettierrc", ".eslintrc", ".babelrc",
+    ];
+    NOEXT.contains(&l.as_str())
+}
+
+/// 내장 탐색기: 폴더 하위의 하위폴더 + 열 수 있는 문서/코드 파일을 반환. 폴더 먼저, 이름순.
 #[tauri::command]
 fn read_dir(path: String) -> Result<Vec<DirEntry>, String> {
     let rd = std::fs::read_dir(&path).map_err(|e| e.to_string())?;
@@ -68,30 +92,54 @@ fn read_dir(path: String) -> Result<Vec<DirEntry>, String> {
     let mut files = vec![];
     for entry in rd.flatten() {
         let name = entry.file_name().to_string_lossy().to_string();
-        if name.starts_with('.') || name.starts_with('$') {
+        if name.starts_with('$') {
             continue;
         }
         let p = entry.path();
         let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
         if is_dir {
-            if name == "node_modules" || name == "target" {
+            // 숨김/시스템 폴더는 감춤 (단 파일 dotfile은 아래에서 허용)
+            if name.starts_with('.') || name == "node_modules" || name == "target" {
                 continue;
             }
             dirs.push(DirEntry { name, path: p.to_string_lossy().to_string(), is_dir: true });
-        } else {
-            let lower = name.to_lowercase();
-            if [".md", ".markdown", ".txt", ".pdf", ".docx", ".doc"]
-                .iter()
-                .any(|e| lower.ends_with(e))
-            {
-                files.push(DirEntry { name, path: p.to_string_lossy().to_string(), is_dir: false });
-            }
+        } else if is_openable(&name) {
+            files.push(DirEntry { name, path: p.to_string_lossy().to_string(), is_dir: false });
         }
     }
     dirs.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
     files.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
     dirs.extend(files);
     Ok(dirs)
+}
+
+/// 온라인 빠른 번역 (무료 엔드포인트, 정확도보다 가벼움 우선). 네이티브만 — 브라우저는 CORS로 불가.
+#[tauri::command]
+fn translate_text(text: String, target: String) -> Result<String, String> {
+    let url = format!(
+        "https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl={}&dt=t&q={}",
+        target,
+        urlencoding::encode(&text)
+    );
+    let body = ureq::get(&url)
+        .call()
+        .map_err(|e| e.to_string())?
+        .into_string()
+        .map_err(|e| e.to_string())?;
+    let v: serde_json::Value = serde_json::from_str(&body).map_err(|e| e.to_string())?;
+    let mut out = String::new();
+    if let Some(arr) = v.get(0).and_then(|x| x.as_array()) {
+        for seg in arr {
+            if let Some(s) = seg.get(0).and_then(|x| x.as_str()) {
+                out.push_str(s);
+            }
+        }
+    }
+    if out.is_empty() {
+        Err("no translation".into())
+    } else {
+        Ok(out)
+    }
 }
 
 /// 내장 탐색기: 경로로 텍스트 파일(md/txt) 열기
@@ -153,7 +201,8 @@ fn main() {
             read_dir,
             read_text_at,
             read_bytes_at,
-            set_clip_watch
+            set_clip_watch,
+            translate_text
         ])
         .run(tauri::generate_context!())
         .expect("error while running MD Lens");

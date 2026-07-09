@@ -10,10 +10,12 @@ No account, no cloud, no telemetry — it just opens your files fast.
 ## Features
 
 - **Formats** — Markdown & text (render + edit), PDF (built‑in viewer), DOCX (rendered)
+- **Code & config files** — `.json` · `.yml` · `.toml` · `.env` · `.gitignore` · `.js` · `.py` · `.rs` and many more open as editable plain text — a fast pop‑open for quick edits without launching an IDE
 - **Tabs** — each split pane has its own tabs
 - **Split view** — 1 / 2 / 3 panes, independent of tabs
 - **Built‑in file explorer** *(app)* — browse drives and folders inside the app, no OS dialog
 - **Clipboard auto‑record** *(app, off by default)* — capture copied text into a list you can re‑copy
+- **Quick translate** *(app, optional/online)* — select text → a small button translates it into your UI language via a free service (local‑first, so it stays a lightweight extra)
 - **Always‑on‑top** *(app)* — pin the window like a sticky note
 - **File association** *(app)* — double‑click `.md` / `.txt` to open in MD Lens
 - **7 languages** — English · 한국어 · 日本語 · 中文 · Français · Deutsch · Español (⚙ top‑right)
