@@ -1,0 +1,56 @@
+# v0.2.0 계획 — 실사용 피드백 반영 (2026-07-10)
+
+> 출처: 홍찬영 실사용 피드백. 다음 작업 세션은 이 문서 순서대로 실행하면 된다.
+> 수정 대상 프론트는 `mdlens.html` 단일 파일 (dist는 빌드 시 자동 sync).
+
+## P0 — 버그: 설정 패널이 항상 떠 있음 (최우선, CSS 1줄)
+
+- **증상**: 우상단에 "언어" 선택 박스가 상시 노출(사용자는 번역 UI로 오인), ⚙ 클릭해도 변화 없어 보임.
+- **원인**: `#settings` CSS에 `display:flex`가 있어 author 스타일이 UA의 `[hidden]{display:none}`을 덮음 → `hidden` 토글이 무효.
+- **수정**: `#settings[hidden]{display:none !important}` 추가 (또는 class 기반 open 토글로 변경).
+- 회귀 검증: 부팅 시 안 보임 → ⚙ 클릭 시 표시 → 바깥 클릭 시 닫힘.
+
+## P1 — UX 재배치 (한 배치)
+
+1. **좌측 = 탐색 전용 통합 (네이티브)**
+   - Tauri 모드에서 `파일 열기`/`폴더 추가` 버튼 숨김 (Ctrl+O 단축키는 유지).
+   - 즐겨찾기(handle 기반)를 탐색기로 통합: 탐색기 폴더 항목에 ☆ 핀 버튼 → 핀한 경로(문자열 저장)가 탐색기 최상단 "핀 고정" 그룹에 표시. 기존 favs(handle) 섹션은 네이티브에서 숨김.
+   - 브라우저 모드는 기존 유지 + 각 빈 상태에 한 줄 사용 안내 강화.
+2. **우측 접이식 유틸 독**
+   - 우측 가장자리 토글(») 패널: 클립보드 목록 + 클립 저장 + 자동기록 토글 + **번역 결과 표시 영역**.
+   - 접힘 상태 kv 저장. 분할 2~3개여도 화면 안 가리게 overlay가 아닌 flex 열로.
+   - 좌측 사이드바에서 클립 섹션 제거.
+3. **번역 UX 편입**
+   - 선택 시 뜨는 🌐 미니버튼은 유지하되, 결과는 팝업이 아니라 우측 독의 번역 영역에 표시(선택→버튼→우측에 결과). 대상 언어 선택도 그 영역에.
+4. **📌 라벨/발견성**
+   - 버튼을 `📌 항상 위`로 텍스트 병기, 켤 때 flash로 "이 창이 다른 창들 위에 항상 표시됩니다".
+5. **스크롤바 스타일**
+   - `::-webkit-scrollbar{width:10px;height:10px}`, thumb `var(--line)` 라운드+`border:2px solid var(--bg)`, hover 시 `var(--accent)`. 다크/라이트 변수 그대로.
+
+## P2 — 기능 추가 (한 배치)
+
+1. **탭 드래그로 분할 간 이동**
+   - `.ptab`에 `draggable`, dragstart에서 `dataTransfer.setData('application/x-mdlens-tab', JSON{paneIdx,tabIdx})`.
+   - pane drop 핸들러에서 해당 타입이면 파일 드롭 대신 탭 이동 처리(원본 pane.tabs에서 splice → 대상 addTab, active 보정). 같은 pane이면 순서 변경.
+   - 파일 드롭과 충돌 없게 타입 검사 우선.
+2. **이미지 뷰**
+   - kind 'img' 추가: png/jpg/jpeg/gif/webp/svg/bmp/ico.
+   - 브라우저 드롭/열기: objectURL → `<img>` (max-width/height 100%, 중앙, 클릭 시 원본 크기 토글).
+   - 네이티브: read_bytes_at → blob. `is_openable`(main.rs)와 OPEN_EXTS, 탐색기 정규식에 확장자 추가.
+   - 탭/분할과 동일하게 동작. 편집 버튼은 img에서 비활성.
+
+## P3 — 아이콘 재제작
+
+- 모티프: 다크 네이비 라운드 사각 + **돋보기 렌즈**(원형 링 + 45° 핸들), 렌즈 안에 확대된 텍스트 줄 2개, 시안(#7ee0ff) 액센트 링 + 유리 하이라이트.
+- 제작법: SVG 작성 → Playwright(chromium, `omitBackground:true`)로 512px PNG 렌더 → `npx tauri icon <png>`.
+- Playwright는 offshore `claude-design/phaser-app`의 설치본 재사용.
+
+## 마감
+
+- 로컬 검증(브라우저 Playwright 스모크 + 네이티브 실행) → 버전 3곳(0.2.0) 갱신(MAINTAINING.md §2) → 커밋 → `v0.2.0` 태그 push(자동빌드) 또는 수동 릴리즈.
+
+## 참고 (이번에 답한 것)
+
+- "붕 뜬 한국어 박스" = P0 버그(고장난 설정 패널)이지 번역 UI 아님.
+- 📌 = 창을 다른 모든 창 위에 항상 표시(always-on-top).
+- 이미지 뷰는 현재 미지원 → P2에서 추가.
