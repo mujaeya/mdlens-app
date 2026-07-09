@@ -1,41 +1,31 @@
 name: build
 
-# 태그(v1.0.0 등)를 푸시하면 Windows/macOS/Linux용을 빌드해 GitHub Release 초안에 첨부합니다.
+# 태그(v0.1.0 등)를 푸시하면 Windows 설치파일을 빌드해 GitHub Release 초안에 첨부합니다.
+# (앱은 Windows 우선. mac/linux가 필요해지면 matrix로 확장하세요 — MAINTAINING.md 참고)
 on:
   push:
     tags:
       - 'v*'
   workflow_dispatch:
 
+permissions:
+  contents: write   # tauri-action이 Release를 만들려면 필요
+
 jobs:
   build:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: windows-latest
-          - platform: macos-latest
-          - platform: ubuntu-latest
-    runs-on: ${{ matrix.platform }}
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Linux deps
-        if: matrix.platform == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev librsvg2-dev patchelf
-
       - uses: dtolnay/rust-toolchain@stable
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Install npm deps
-        run: npm install
+      - run: npm install
 
-      - name: Build (Tauri)
-        uses: tauri-apps/tauri-action@v0
+      - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
