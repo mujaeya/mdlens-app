@@ -2,15 +2,20 @@
 
 > 출처: 홍찬영 실사용 피드백. 다음 작업 세션은 이 문서 순서대로 실행하면 된다.
 > 수정 대상 프론트는 `mdlens.html` 단일 파일 (dist는 빌드 시 자동 sync).
+>
+> **상태 (2026-07-10): P0~P3 구현 완료.** 브라우저 스모크(Playwright) 전 항목 통과·콘솔 에러 0.
+> 수동 확인 대기(네이티브 전용 경로): ① 탐색기 ☆핀 등록/해제/재시작 유지 ② 번역 결과가 우측 독에 표시 ③ 클립보드 자동기록 동작 ④ 새 아이콘 적용 확인 ⑤ 이미지 파일 탐색기에서 열기.
 
-## P0 — 버그: 설정 패널이 항상 떠 있음 (최우선, CSS 1줄)
+## P0 — 버그: 설정 패널이 항상 떠 있음 (최우선, CSS 1줄) — ✅ 완료 (G-001, 커밋 59fd04e, 2026-07-10 게이트 통과)
+
+> 소스/dist 반영 완료. 설치본(exe)에는 v0.2.0 빌드 시 포함된다. 회귀 검증(부팅 시 안 보임 → ⚙ 토글)은 v0.2 마감 스모크에서 함께 확인.
 
 - **증상**: 우상단에 "언어" 선택 박스가 상시 노출(사용자는 번역 UI로 오인), ⚙ 클릭해도 변화 없어 보임.
 - **원인**: `#settings` CSS에 `display:flex`가 있어 author 스타일이 UA의 `[hidden]{display:none}`을 덮음 → `hidden` 토글이 무효.
 - **수정**: `#settings[hidden]{display:none !important}` 추가 (또는 class 기반 open 토글로 변경).
 - 회귀 검증: 부팅 시 안 보임 → ⚙ 클릭 시 표시 → 바깥 클릭 시 닫힘.
 
-## P1 — UX 재배치 (한 배치)
+## P1 — UX 재배치 (한 배치) — ✅ 구현 완료 (2026-07-10)
 
 1. **좌측 = 탐색 전용 통합 (네이티브)**
    - Tauri 모드에서 `파일 열기`/`폴더 추가` 버튼 숨김 (Ctrl+O 단축키는 유지).
@@ -27,7 +32,7 @@
 5. **스크롤바 스타일**
    - `::-webkit-scrollbar{width:10px;height:10px}`, thumb `var(--line)` 라운드+`border:2px solid var(--bg)`, hover 시 `var(--accent)`. 다크/라이트 변수 그대로.
 
-## P2 — 기능 추가 (한 배치)
+## P2 — 기능 추가 (한 배치) — ✅ 구현 완료 (2026-07-10, + 핸들 없는 드롭 소스 폴백 수정)
 
 1. **탭 드래그로 분할 간 이동**
    - `.ptab`에 `draggable`, dragstart에서 `dataTransfer.setData('application/x-mdlens-tab', JSON{paneIdx,tabIdx})`.
@@ -39,7 +44,7 @@
    - 네이티브: read_bytes_at → blob. `is_openable`(main.rs)와 OPEN_EXTS, 탐색기 정규식에 확장자 추가.
    - 탭/분할과 동일하게 동작. 편집 버튼은 img에서 비활성.
 
-## P3 — 아이콘 재제작
+## P3 — 아이콘 재제작 — ✅ 구현 완료 (2026-07-10, 소스 `art/icon.svg` → `art/icon-512.png` → `npx tauri icon`)
 
 - 모티프: 다크 네이비 라운드 사각 + **돋보기 렌즈**(원형 링 + 45° 핸들), 렌즈 안에 확대된 텍스트 줄 2개, 시안(#7ee0ff) 액센트 링 + 유리 하이라이트.
 - 제작법: SVG 작성 → Playwright(chromium, `omitBackground:true`)로 512px PNG 렌더 → `npx tauri icon <png>`.

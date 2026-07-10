@@ -90,6 +90,35 @@
   .pview ul,.pview ol{padding-left:1.5em} .pview li{margin:.18em 0}
   .pview em.img{color:var(--muted)}
   .pview pre.plain{white-space:pre-wrap;font-family:Consolas,"D2Coding",monospace;font-size:13.5px;line-height:1.6}
+  /* image view */
+  .pview .imgwrap{text-align:center}
+  .pview .imgwrap img{max-width:100%;max-height:calc(100vh - 140px);cursor:zoom-in}
+  .pview .imgwrap.orig{text-align:left}
+  .pview .imgwrap.orig img{max-width:none;max-height:none;cursor:zoom-out}
+  /* right util dock */
+  #dock{width:264px;min-width:264px;height:100%;display:flex;flex-direction:column;
+    background:var(--side);border-left:1px solid var(--line);padding:10px;overflow-y:auto}
+  #dock h3{font-size:11px;letter-spacing:.06em;color:var(--muted);margin:14px 4px 5px;text-transform:uppercase}
+  #dock .btns{display:flex;gap:6px;flex-wrap:wrap}
+  #dock.collapsed{width:26px;min-width:26px;padding:8px 2px;overflow:hidden}
+  #dock.collapsed>*{display:none}
+  #dock.collapsed>#dockToggle{display:block}
+  #dockToggle{border:0;background:none;padding:2px 4px;font-size:14px;color:var(--muted);
+    cursor:pointer;align-self:flex-start}
+  #dockToggle:hover{color:var(--accent)}
+  #trRes{white-space:pre-wrap;line-height:1.55;font-size:12.5px;padding:4px 6px;
+    min-height:36px;max-height:40vh;overflow:auto}
+  #trLangSel{font:inherit;font-size:12px;padding:3px 6px;border:1px solid var(--line);
+    border-radius:6px;background:var(--bg);color:var(--fg);margin:0 4px}
+  /* explorer pins */
+  .entry .pin{color:var(--muted);visibility:hidden;padding:0 3px;flex-shrink:0}
+  .entry:hover .pin{visibility:visible} .entry .pin:hover{color:var(--accent)}
+  .entry .pin.on{visibility:visible;color:var(--accent)}
+  /* scrollbars */
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:var(--line);border-radius:6px;border:2px solid var(--bg)}
+  ::-webkit-scrollbar-thumb:hover{background:var(--accent)}
 </style>
 </head>
 <body>
@@ -99,12 +128,10 @@
     <button id="btnNew" data-i18n="newFile" data-i18n-title="ttNew">New</button>
     <button id="btnOpen" data-i18n="openFile" data-i18n-title="ttOpen">Open</button>
     <button id="btnAddDir" data-i18n="addFolder">Add folder</button>
-    <button id="btnClip" data-i18n="saveClip" data-i18n-title="ttSaveClip">Save clip</button>
   </div>
   <h3 data-i18n="hFavs">Favorite folders</h3><div id="favList"></div>
   <h3 data-i18n="hFreq">Frequent files</h3><div id="freqList"></div>
   <h3 data-i18n="hRecent">Recent files</h3><div id="recentList"></div>
-  <h3><span data-i18n="hClips">Clipboard</span> <span style="text-transform:none" data-i18n="hClipsSub">(click to copy)</span></h3><div id="clipList"></div>
 </aside>
 
 <div id="main">
@@ -127,6 +154,18 @@
   </div>
   <div id="panes"></div>
 </div>
+
+<aside id="dock">
+  <button id="dockToggle">»</button>
+  <h3><span data-i18n="hClips">Clipboard</span> <span style="text-transform:none" data-i18n="hClipsSub">(click to copy)</span></h3>
+  <div class="btns"><button id="btnClip" data-i18n="saveClip" data-i18n-title="ttSaveClip">Save clip</button></div>
+  <div id="clipList"></div>
+  <div id="trSec" hidden>
+    <h3 data-i18n="translate">Translate</h3>
+    <select id="trLangSel"></select>
+    <div id="trRes"></div>
+  </div>
+</aside>
 
 <script type="module">
 /* ================= markdown parser ================= */
@@ -280,6 +319,17 @@ const I18N={
 const LANG_NAMES={ko:"한국어",en:"English",ja:"日本語",zh:"中文",fr:"Français",de:"Deutsch",es:"Español"};
 const _TR={ko:["번역","번역 실패"],en:["Translate","Translation failed"],ja:["翻訳","翻訳失敗"],zh:["翻译","翻译失败"],fr:["Traduire","Échec de traduction"],de:["Übersetzen","Übersetzung fehlgeschlagen"],es:["Traducir","Error de traducción"]};
 for(const _k in _TR){ I18N[_k].translate=_TR[_k][0]; I18N[_k].trFail=_TR[_k][1]; }
+// v0.2 추가/교체 문자열 (핀 고정 · 📌 라벨 · 이미지 드롭 힌트)
+const _V2={
+ en:{hPinned:"Pinned",emptyPins:"Pin folders with ☆",ttPinDir:"Pin folder to top",pinLabel:"On top",fPinOn:"This window now stays above all others ✓",dropHint:"Drop md · txt · pdf · docx · images here"},
+ ko:{hPinned:"핀 고정",emptyPins:"폴더 옆 ☆로 고정",ttPinDir:"폴더를 상단에 핀 고정",pinLabel:"항상 위",fPinOn:"이 창이 다른 창들 위에 항상 표시됩니다 ✓",dropHint:"여기에 md · txt · pdf · docx · 이미지 드롭"},
+ ja:{hPinned:"ピン留め",emptyPins:"☆でフォルダを固定",ttPinDir:"フォルダを上部にピン留め",pinLabel:"最前面",fPinOn:"このウィンドウを常に最前面に表示します ✓",dropHint:"ここに md · txt · pdf · docx · 画像 をドロップ"},
+ zh:{hPinned:"已固定",emptyPins:"用☆固定文件夹",ttPinDir:"将文件夹固定到顶部",pinLabel:"置顶",fPinOn:"此窗口将始终显示在最前 ✓",dropHint:"拖放 md · txt · pdf · docx · 图片 到此"},
+ fr:{hPinned:"Épinglés",emptyPins:"Épinglez avec ☆",ttPinDir:"Épingler le dossier en haut",pinLabel:"1er plan",fPinOn:"Cette fenêtre reste au premier plan ✓",dropHint:"Déposez md · txt · pdf · docx · images ici"},
+ de:{hPinned:"Angeheftet",emptyPins:"Ordner mit ☆ anheften",ttPinDir:"Ordner oben anheften",pinLabel:"Immer oben",fPinOn:"Dieses Fenster bleibt immer im Vordergrund ✓",dropHint:"md · txt · pdf · docx · Bilder hierher ziehen"},
+ es:{hPinned:"Fijados",emptyPins:"Fija carpetas con ☆",ttPinDir:"Fijar carpeta arriba",pinLabel:"Visible",fPinOn:"Esta ventana se mantiene siempre visible ✓",dropHint:"Suelta md · txt · pdf · docx · imágenes aquí"}
+};
+for(const _k in _V2) Object.assign(I18N[_k], _V2[_k]);
 let curLang=(await kvGet('lang'))||((navigator.language||'en').slice(0,2));
 if(!I18N[curLang]) curLang='en';
 function t(k){ return (I18N[curLang]&&I18N[curLang][k]) ?? I18N.en[k] ?? k; }
@@ -318,7 +368,9 @@ function makePane(idx){
     <div class="drophint" data-i18n="dropHint">Drop md · txt · pdf · docx here</div></div>`;
   el.addEventListener('click',()=>setActive(idx));
   el.addEventListener('dragover',e=>e.preventDefault());
-  el.addEventListener('drop',e=>{ e.preventDefault(); e.stopPropagation(); setActive(idx); handleDrop(e); });
+  el.addEventListener('drop',e=>{ e.preventDefault(); e.stopPropagation(); setActive(idx);
+    const d=tabDropData(e); if(d){ moveTab(d.p, d.t, idx, panes[idx].tabs.length); return; }   // 탭 드롭 = 이 칸 끝으로
+    handleDrop(e); });
   return { el, view:el.querySelector('.pview'), edit:el.querySelector('.pedit'),
     tabbar:el.querySelector('.ptabs'), hint:el.querySelector('.drophint'),
     tabs:[], active:-1 };
@@ -333,6 +385,10 @@ function renderTabbar(p){
   p.tabbar.innerHTML='';
   p.tabs.forEach((t,i)=>{
     const tab=document.createElement('div'); tab.className='ptab'+(i===p.active?' on':''); tab.title=t.name;
+    tab.draggable=true;   // 탭 드래그로 분할 간/내 이동
+    tab.ondragstart=e=>{ e.dataTransfer.setData('application/x-mdlens-tab', JSON.stringify({p:panes.indexOf(p), t:i})); e.dataTransfer.effectAllowed='move'; };
+    tab.ondragover=e=>{ if([...e.dataTransfer.types].includes('application/x-mdlens-tab')){ e.preventDefault(); e.stopPropagation(); } };
+    tab.ondrop=e=>{ const d=tabDropData(e); if(!d) return; e.preventDefault(); e.stopPropagation(); moveTab(d.p, d.t, panes.indexOf(p), i); };
     const nm=document.createElement('span'); nm.className='ptname'; nm.textContent=t.name; tab.appendChild(nm);
     const x=document.createElement('span'); x.className='tx'; x.textContent='✕';
     x.onclick=e=>{ e.stopPropagation(); closeTab(p,i); }; tab.appendChild(x);
@@ -359,6 +415,24 @@ function closeTab(p,i){
   if(p.active>=p.tabs.length) p.active=p.tabs.length-1;
   renderActive(p); renderTabbar(p); syncEditBtn();
 }
+function tabDropData(e){
+  try{ const s=e.dataTransfer.getData('application/x-mdlens-tab'); return s?JSON.parse(s):null; }catch{ return null; }
+}
+function moveTab(sp,si,dp,di){   // 탭을 분할 간/내 이동 (di 위치 앞에 삽입)
+  const src=panes[sp], dst=panes[dp];
+  if(!src||!dst||!src.tabs[si]) return;
+  const cur=paneDoc(src); if(cur&&cur.editing) cur.raw=src.edit.value;   // 편집 내용 보존
+  const [doc]=src.tabs.splice(si,1);
+  if(src===dst && di>si) di--;
+  if(src!==dst){
+    if(src.active>si) src.active--;
+    else if(src.active===si) src.active=Math.min(si,src.tabs.length-1);
+  }
+  dst.tabs.splice(di,0,doc); dst.active=di;
+  renderActive(src); renderTabbar(src);
+  if(src!==dst){ renderActive(dst); renderTabbar(dst); }
+  setActive(dp);
+}
 function clearPane(i){   // 칸의 모든 탭 닫기
   const p=panes[i];
   p.tabs.forEach(t=>{ if(t.url) URL.revokeObjectURL(t.url); });
@@ -380,6 +454,7 @@ function kindOf(name){
   if(/\.(md|markdown)$/i.test(name)) return 'md';
   if(/\.pdf$/i.test(name)) return 'pdf';
   if(/\.docx?$/i.test(name)) return 'docx';
+  if(/\.(png|jpe?g|gif|webp|svg|bmp|ico)$/i.test(name)) return 'img';
   return 'txt';
 }
 function renderActive(p){
@@ -395,6 +470,12 @@ function renderActive(p){
     p.el.querySelector('.pbody').appendChild(e);
   } else if(s.kind==='docx'){
     p.view.style.display=''; p.view.innerHTML=s.htmlCache||'<p style="color:var(--muted)">비어 있음</p>';
+  } else if(s.kind==='img'){
+    p.view.style.display=''; p.view.innerHTML='';
+    const w=document.createElement('div'); w.className='imgwrap';
+    const im=document.createElement('img'); im.src=s.url; im.alt=s.name;
+    w.onclick=()=>w.classList.toggle('orig');   // 클릭 = 원본 크기 토글
+    w.appendChild(im); p.view.appendChild(w);
   } else if(s.kind==='md'){
     p.view.style.display=''; p.view.innerHTML=mdToHtml(s.raw);
   } else {
@@ -417,7 +498,7 @@ function loadMammoth(){
 
 async function makeDoc(file, handle){   // File → docState (탭 1개 분량)
   const name=file.name, kind=kindOf(name);
-  if(kind==='pdf')
+  if(kind==='pdf'||kind==='img')
     return { name, kind, handle:handle||null, tauriPath:null, url:URL.createObjectURL(file), raw:'', editing:false };
   if(kind==='docx'){
     let html='<p style="color:var(--muted)">'+t('docxFail')+'</p>';
@@ -466,7 +547,7 @@ function drawLists(){
 async function listDir(h,depth=0,acc=[],prefix=''){
   if(acc.length>300) return acc;
   for await(const [name,child] of h.entries()){
-    if(child.kind==='file'&&/\.(md|markdown|txt|pdf|docx?|rtf|json|jsonc|ya?ml|toml|ini|conf|config|env|xml|csv|tsv|log|m?[jt]sx?|cjs|vue|svelte|py|rs|go|rb|php|java|c|h|cpp|hpp|cs|swift|kt|lua|pl|r|dart|html?|css|s[ca]ss|less|sh|bash|zsh|ps1|bat|cmd|sql|gitignore|gitattributes|dockerignore|editorconfig|properties|gradle)$/i.test(name))
+    if(child.kind==='file'&&/\.(md|markdown|txt|pdf|docx?|rtf|json|jsonc|ya?ml|toml|ini|conf|config|env|xml|csv|tsv|log|m?[jt]sx?|cjs|vue|svelte|py|rs|go|rb|php|java|c|h|cpp|hpp|cs|swift|kt|lua|pl|r|dart|html?|css|s[ca]ss|less|sh|bash|zsh|ps1|bat|cmd|sql|gitignore|gitattributes|dockerignore|editorconfig|properties|gradle|png|jpe?g|gif|webp|svg|bmp|ico)$/i.test(name))
       acc.push({label:prefix+name, handle:child});
     else if(child.kind==='directory'&&depth<2&&!name.startsWith('.')
       &&name!=='node_modules'&&name!=='dist')
@@ -482,7 +563,7 @@ async function renderDir(dirHandle, container){
     for await(const [name,child] of dirHandle.entries()){
       if(child.kind==='directory'){
         if(!name.startsWith('.')&&name!=='node_modules'&&name!=='dist') dirs.push([name,child]);
-      } else if(/\.(md|markdown|txt|pdf|docx?|rtf|json|jsonc|ya?ml|toml|ini|conf|config|env|xml|csv|tsv|log|m?[jt]sx?|cjs|vue|svelte|py|rs|go|rb|php|java|c|h|cpp|hpp|cs|swift|kt|lua|pl|r|dart|html?|css|s[ca]ss|less|sh|bash|zsh|ps1|bat|cmd|sql|gitignore|gitattributes|dockerignore|editorconfig|properties|gradle)$/i.test(name)) docs.push([name,child]);
+      } else if(/\.(md|markdown|txt|pdf|docx?|rtf|json|jsonc|ya?ml|toml|ini|conf|config|env|xml|csv|tsv|log|m?[jt]sx?|cjs|vue|svelte|py|rs|go|rb|php|java|c|h|cpp|hpp|cs|swift|kt|lua|pl|r|dart|html?|css|s[ca]ss|less|sh|bash|zsh|ps1|bat|cmd|sql|gitignore|gitattributes|dockerignore|editorconfig|properties|gradle|png|jpe?g|gif|webp|svg|bmp|ico)$/i.test(name)) docs.push([name,child]);
     }
   }catch{ container.innerHTML='<div class="empty">'+t('readFail')+'</div>'; return; }
   dirs.sort((a,b)=>a[0].localeCompare(b[0]));
@@ -585,18 +666,16 @@ async function save(){
 async function handleDrop(e){
   const item=e.dataTransfer.items&&e.dataTransfer.items[0];
   if(!item) return;
-  if(item.getAsFileSystemHandle){
-    const h=await item.getAsFileSystemHandle();
-    if(h&&h.kind==='file') await openHandle(h);
-  } else {
-    const f=item.getAsFile();
-    if(f) await openIntoPane(active,f,null);
-  }
+  const f=item.getAsFile&&item.getAsFile();   // await 후엔 items가 무효화되므로 동기 캡처
+  const hp=item.getAsFileSystemHandle?item.getAsFileSystemHandle():null;
+  const h=hp?await hp.catch(()=>null):null;
+  if(h&&h.kind==='file'){ await openHandle(h); return; }
+  if(f) await openIntoPane(active,f,null);   // 핸들 없는 소스(스크린샷 드래그 등) 폴백
 }
 addEventListener('dragover',e=>e.preventDefault());
-addEventListener('drop',e=>{ e.preventDefault(); handleDrop(e); });
+addEventListener('drop',e=>{ e.preventDefault(); if(tabDropData(e)) return; handleDrop(e); });
 
-const OPEN_EXTS=['.md','.markdown','.txt','.pdf','.docx','.doc','.rtf','.json','.jsonc','.yml','.yaml','.toml','.ini','.conf','.config','.env','.xml','.csv','.tsv','.log','.js','.mjs','.cjs','.ts','.tsx','.jsx','.vue','.svelte','.py','.rs','.go','.rb','.php','.java','.c','.h','.cpp','.hpp','.cs','.swift','.kt','.lua','.pl','.r','.dart','.html','.htm','.css','.scss','.sass','.less','.sh','.bash','.zsh','.ps1','.bat','.cmd','.sql','.gitignore','.gitattributes','.dockerignore','.editorconfig','.properties','.gradle'];
+const OPEN_EXTS=['.md','.markdown','.txt','.pdf','.docx','.doc','.rtf','.json','.jsonc','.yml','.yaml','.toml','.ini','.conf','.config','.env','.xml','.csv','.tsv','.log','.js','.mjs','.cjs','.ts','.tsx','.jsx','.vue','.svelte','.py','.rs','.go','.rb','.php','.java','.c','.h','.cpp','.hpp','.cs','.swift','.kt','.lua','.pl','.r','.dart','.html','.htm','.css','.scss','.sass','.less','.sh','.bash','.zsh','.ps1','.bat','.cmd','.sql','.gitignore','.gitattributes','.dockerignore','.editorconfig','.properties','.gradle','.png','.jpg','.jpeg','.gif','.webp','.svg','.bmp','.ico'];
 $('btnOpen').onclick=async()=>{
   if(hasFS){
     try{
@@ -652,13 +731,13 @@ addEventListener('keydown',e=>{
 
 /* ================= boot ================= */
 const HELPS={
- en:`# MD Lens\n\nLightweight local document viewer.\n\n## Shortcuts\n\n| Action | How |\n|---|---|\n| New / Open | \`Ctrl+N\` / \`Ctrl+O\` · or **drag & drop** onto a pane |\n| Edit → Save | \`Ctrl+E\` → \`Ctrl+S\` |\n| Split | **1 / 2 / 3** at top — each pane has its own **tabs** |\n| Formats | md · txt (render/edit), pdf, docx |\n| Explorer *(app only)* | browse drives/folders in the left panel |\n| Clipboard auto-record *(app only)* | toggle next to "Save clip" |\n| Language | ⚙ top-right |\n`,
- ko:`# MD Lens\n\n가벼운 로컬 문서 뷰어.\n\n## 단축키\n\n| 동작 | 방법 |\n|---|---|\n| 새 파일 / 열기 | \`Ctrl+N\` / \`Ctrl+O\` · 또는 칸에 **드래그&드롭** |\n| 편집 → 저장 | \`Ctrl+E\` → \`Ctrl+S\` |\n| 분할 | 상단 **1 / 2 / 3** — 칸마다 **탭** 있음 |\n| 형식 | md · txt (렌더/편집), pdf, docx |\n| 탐색기 *(앱 전용)* | 왼쪽 패널에서 드라이브/폴더 탐색 |\n| 클립보드 자동기록 *(앱 전용)* | "클립 저장" 옆 토글 |\n| 언어 | 오른쪽 위 ⚙ |\n`,
- ja:`# MD Lens\n\n軽量なローカル文書ビューア。\n\n## ショートカット\n\n| 操作 | 方法 |\n|---|---|\n| 新規 / 開く | \`Ctrl+N\` / \`Ctrl+O\` · またはペインに**ドラッグ&ドロップ** |\n| 編集 → 保存 | \`Ctrl+E\` → \`Ctrl+S\` |\n| 分割 | 上部 **1 / 2 / 3** — 各ペインに**タブ** |\n| 形式 | md · txt (表示/編集), pdf, docx |\n| エクスプローラ *(アプリのみ)* | 左パネルでドライブ/フォルダ探索 |\n| クリップボード自動記録 *(アプリのみ)* | 「クリップ保存」隣のトグル |\n| 言語 | 右上 ⚙ |\n`,
- zh:`# MD Lens\n\n轻量本地文档查看器。\n\n## 快捷键\n\n| 操作 | 方法 |\n|---|---|\n| 新建 / 打开 | \`Ctrl+N\` / \`Ctrl+O\` · 或**拖放**到分屏 |\n| 编辑 → 保存 | \`Ctrl+E\` → \`Ctrl+S\` |\n| 分屏 | 顶部 **1 / 2 / 3** — 每个分屏有**标签页** |\n| 格式 | md · txt (渲染/编辑), pdf, docx |\n| 资源管理器 *(仅应用)* | 在左栏浏览驱动器/文件夹 |\n| 剪贴板自动记录 *(仅应用)* | "保存剪贴"旁的开关 |\n| 语言 | 右上角 ⚙ |\n`,
- fr:`# MD Lens\n\nVisionneuse de documents locale et légère.\n\n## Raccourcis\n\n| Action | Comment |\n|---|---|\n| Nouveau / Ouvrir | \`Ctrl+N\` / \`Ctrl+O\` · ou **glisser-déposer** |\n| Éditer → Enreg. | \`Ctrl+E\` → \`Ctrl+S\` |\n| Diviser | **1 / 2 / 3** en haut — chaque volet a ses **onglets** |\n| Formats | md · txt (rendu/édition), pdf, docx |\n| Explorateur *(app)* | parcourir disques/dossiers à gauche |\n| Auto-enreg. presse-papiers *(app)* | bouton près de « Sauver clip » |\n| Langue | ⚙ en haut à droite |\n`,
- de:`# MD Lens\n\nLeichter lokaler Dokument-Viewer.\n\n## Tastenkürzel\n\n| Aktion | Wie |\n|---|---|\n| Neu / Öffnen | \`Strg+N\` / \`Strg+O\` · oder **Ziehen & Ablegen** |\n| Bearb. → Speichern | \`Strg+E\` → \`Strg+S\` |\n| Teilen | **1 / 2 / 3** oben — jedes Feld hat eigene **Tabs** |\n| Formate | md · txt (Anzeige/Bearb.), pdf, docx |\n| Explorer *(App)* | Laufwerke/Ordner links durchsuchen |\n| Zwischenablage-Auto *(App)* | Schalter neben „Clip sichern" |\n| Sprache | ⚙ oben rechts |\n`,
- es:`# MD Lens\n\nVisor de documentos local y ligero.\n\n## Atajos\n\n| Acción | Cómo |\n|---|---|\n| Nuevo / Abrir | \`Ctrl+N\` / \`Ctrl+O\` · o **arrastrar y soltar** |\n| Editar → Guardar | \`Ctrl+E\` → \`Ctrl+S\` |\n| Dividir | **1 / 2 / 3** arriba — cada panel tiene **pestañas** |\n| Formatos | md · txt (render/edición), pdf, docx |\n| Explorador *(app)* | explora discos/carpetas a la izquierda |\n| Auto-registro portapapeles *(app)* | botón junto a "Guardar clip" |\n| Idioma | ⚙ arriba a la derecha |\n`
+ en:`# MD Lens\n\nLightweight local document viewer.\n\n## Shortcuts\n\n| Action | How |\n|---|---|\n| New / Open | \`Ctrl+N\` / \`Ctrl+O\` · or **drag & drop** onto a pane |\n| Edit → Save | \`Ctrl+E\` → \`Ctrl+S\` |\n| Split | **1 / 2 / 3** at top — each pane has its own **tabs** |\n| Formats | md · txt (render/edit), pdf, docx, img |\n| Explorer *(app only)* | browse drives/folders in the left panel |\n| Clipboard auto-record *(app only)* | toggle next to "Save clip" |\n| Language | ⚙ top-right |\n`,
+ ko:`# MD Lens\n\n가벼운 로컬 문서 뷰어.\n\n## 단축키\n\n| 동작 | 방법 |\n|---|---|\n| 새 파일 / 열기 | \`Ctrl+N\` / \`Ctrl+O\` · 또는 칸에 **드래그&드롭** |\n| 편집 → 저장 | \`Ctrl+E\` → \`Ctrl+S\` |\n| 분할 | 상단 **1 / 2 / 3** — 칸마다 **탭** 있음 |\n| 형식 | md · txt (렌더/편집), pdf, docx, img |\n| 탐색기 *(앱 전용)* | 왼쪽 패널에서 드라이브/폴더 탐색 |\n| 클립보드 자동기록 *(앱 전용)* | "클립 저장" 옆 토글 |\n| 언어 | 오른쪽 위 ⚙ |\n`,
+ ja:`# MD Lens\n\n軽量なローカル文書ビューア。\n\n## ショートカット\n\n| 操作 | 方法 |\n|---|---|\n| 新規 / 開く | \`Ctrl+N\` / \`Ctrl+O\` · またはペインに**ドラッグ&ドロップ** |\n| 編集 → 保存 | \`Ctrl+E\` → \`Ctrl+S\` |\n| 分割 | 上部 **1 / 2 / 3** — 各ペインに**タブ** |\n| 形式 | md · txt (表示/編集), pdf, docx, img |\n| エクスプローラ *(アプリのみ)* | 左パネルでドライブ/フォルダ探索 |\n| クリップボード自動記録 *(アプリのみ)* | 「クリップ保存」隣のトグル |\n| 言語 | 右上 ⚙ |\n`,
+ zh:`# MD Lens\n\n轻量本地文档查看器。\n\n## 快捷键\n\n| 操作 | 方法 |\n|---|---|\n| 新建 / 打开 | \`Ctrl+N\` / \`Ctrl+O\` · 或**拖放**到分屏 |\n| 编辑 → 保存 | \`Ctrl+E\` → \`Ctrl+S\` |\n| 分屏 | 顶部 **1 / 2 / 3** — 每个分屏有**标签页** |\n| 格式 | md · txt (渲染/编辑), pdf, docx, img |\n| 资源管理器 *(仅应用)* | 在左栏浏览驱动器/文件夹 |\n| 剪贴板自动记录 *(仅应用)* | "保存剪贴"旁的开关 |\n| 语言 | 右上角 ⚙ |\n`,
+ fr:`# MD Lens\n\nVisionneuse de documents locale et légère.\n\n## Raccourcis\n\n| Action | Comment |\n|---|---|\n| Nouveau / Ouvrir | \`Ctrl+N\` / \`Ctrl+O\` · ou **glisser-déposer** |\n| Éditer → Enreg. | \`Ctrl+E\` → \`Ctrl+S\` |\n| Diviser | **1 / 2 / 3** en haut — chaque volet a ses **onglets** |\n| Formats | md · txt (rendu/édition), pdf, docx, img |\n| Explorateur *(app)* | parcourir disques/dossiers à gauche |\n| Auto-enreg. presse-papiers *(app)* | bouton près de « Sauver clip » |\n| Langue | ⚙ en haut à droite |\n`,
+ de:`# MD Lens\n\nLeichter lokaler Dokument-Viewer.\n\n## Tastenkürzel\n\n| Aktion | Wie |\n|---|---|\n| Neu / Öffnen | \`Strg+N\` / \`Strg+O\` · oder **Ziehen & Ablegen** |\n| Bearb. → Speichern | \`Strg+E\` → \`Strg+S\` |\n| Teilen | **1 / 2 / 3** oben — jedes Feld hat eigene **Tabs** |\n| Formate | md · txt (Anzeige/Bearb.), pdf, docx, img |\n| Explorer *(App)* | Laufwerke/Ordner links durchsuchen |\n| Zwischenablage-Auto *(App)* | Schalter neben „Clip sichern" |\n| Sprache | ⚙ oben rechts |\n`,
+ es:`# MD Lens\n\nVisor de documentos local y ligero.\n\n## Atajos\n\n| Acción | Cómo |\n|---|---|\n| Nuevo / Abrir | \`Ctrl+N\` / \`Ctrl+O\` · o **arrastrar y soltar** |\n| Editar → Guardar | \`Ctrl+E\` → \`Ctrl+S\` |\n| Dividir | **1 / 2 / 3** arriba — cada panel tiene **pestañas** |\n| Formatos | md · txt (render/edición), pdf, docx, img |\n| Explorador *(app)* | explora discos/carpetas a la izquierda |\n| Auto-registro portapapeles *(app)* | botón junto a "Guardar clip" |\n| Idioma | ⚙ arriba a la derecha |\n`
 };
 layoutPanes(paneCount);
 applyLang();
@@ -667,11 +746,28 @@ addTab(panes[0], {name:t('helpTitle'),handle:null,tauriPath:null,raw:(HELPS[curL
 setActive(0);
 if(!hasFS) flash(t('fBrowserHint'));
 
+/* ---------- 우측 유틸 독 (접이식 — 상태 kv 저장) ---------- */
+const dock=$('dock'), dockToggle=$('dockToggle');
+let dockCollapsed=(await kvGet('dockCollapsed'))||false;
+function applyDock(){
+  dock.classList.toggle('collapsed',dockCollapsed);
+  dockToggle.textContent=dockCollapsed?'«':'»';
+}
+dockToggle.onclick=async()=>{ dockCollapsed=!dockCollapsed; await kvSet('dockCollapsed',dockCollapsed); applyDock(); };
+applyDock();
+
 /* ---------- Tauri 네이티브 앱 모드 (브라우저에선 window.__TAURI__ 없음 → 스킵) ---------- */
 const T = window.__TAURI__;
 if (T){
+  // v0.2: 좌측 = 탐색 전용 — Open/폴더추가 버튼과 브라우저 즐겨찾기 숨김 (Ctrl+O 단축키는 유지)
+  $('btnOpen').hidden = true; $('btnAddDir').hidden = true;
+  const favH = document.querySelector('#side h3[data-i18n="hFavs"]');
+  if (favH){ favH.hidden = true; $('favList').hidden = true; }
+
   // 1) 항상 위 고정
   const pin = $('btnPin'); pin.hidden = false;
+  const pinLbl = () => { pin.textContent = '📌 ' + t('pinLabel'); };
+  pinLbl();
   let pinned = false;
   pin.onclick = async () => {
     pinned = !pinned;
@@ -707,6 +803,10 @@ if (T){
       } else if(kind==='pdf'){
         const url=URL.createObjectURL(new Blob([b64ToArrayBuffer(await T.core.invoke('read_bytes_at',{path}))],{type:'application/pdf'}));
         doc={ name, kind, handle:null, tauriPath:path, url, raw:'', editing:false };
+      } else if(kind==='img'){
+        const mime=/\.svg$/i.test(name)?'image/svg+xml':/\.png$/i.test(name)?'image/png':/\.gif$/i.test(name)?'image/gif':/\.webp$/i.test(name)?'image/webp':/\.bmp$/i.test(name)?'image/bmp':/\.ico$/i.test(name)?'image/x-icon':'image/jpeg';
+        const url=URL.createObjectURL(new Blob([b64ToArrayBuffer(await T.core.invoke('read_bytes_at',{path}))],{type:mime}));
+        doc={ name, kind, handle:null, tauriPath:path, url, raw:'', editing:false };
       } else if(kind==='docx'){
         let html='<p style="color:var(--muted)">'+t('docxFail')+'</p>';
         try{ await loadMammoth(); html=(await window.mammoth.convertToHtml({arrayBuffer:b64ToArrayBuffer(await T.core.invoke('read_bytes_at',{path}))})).value; }catch{}
@@ -714,6 +814,15 @@ if (T){
       } else return;
       addTab(p, doc);
     }catch(e){ flash(t('fOpenFail')+': '+e); }
+  }
+  // v0.2: 탐색기 핀 고정 (경로 문자열을 kv에 저장 — handle 불필요)
+  let pins = (await kvGet('pins')) || [];
+  const pinName = pth => pth.replace(/[\\/]+$/,'').split(/[\\/]/).pop() || pth;
+  async function togglePin(pth){
+    const i = pins.indexOf(pth);
+    if (i >= 0) pins.splice(i,1); else pins.unshift(pth);
+    pins = pins.slice(0,12);
+    await kvSet('pins', pins); drawPins();
   }
   async function drawExplorer(container, path){
     container.innerHTML='<div class="empty">'+t('reading')+'</div>';
@@ -729,6 +838,11 @@ if (T){
           if(sub.childNodes.length){ sub.innerHTML=''; return; }
           await drawExplorer(sub, en.path);
         });
+        const st=document.createElement('span'); st.title=t('ttPinDir');   // ☆ 핀 토글
+        const stSync=()=>{ const on=pins.includes(en.path); st.className='pin'+(on?' on':''); st.textContent=on?'★':'☆'; };
+        stSync();
+        st.onclick=async e=>{ e.stopPropagation(); await togglePin(en.path); stSync(); };
+        node.appendChild(st);
         const w=document.createElement('div'); w.appendChild(node); w.appendChild(sub);
         container.appendChild(w);
       } else {
@@ -736,11 +850,29 @@ if (T){
       }
     }
   }
-  // 사이드바 최상단에 탐색기 섹션 삽입
+  // 사이드바 최상단에 핀 고정 + 탐색기 섹션 삽입
   const side=$('side'), anchor=side.children[1];
+  const pinH=document.createElement('h3'); pinH.dataset.i18n='hPinned'; pinH.textContent=t('hPinned');
+  const pinBox=document.createElement('div'); pinBox.id='pinList';
   const expH=document.createElement('h3'); expH.dataset.i18n='hExplorer'; expH.textContent=t('hExplorer');
   const expBox=document.createElement('div'); expBox.id='explorer';
+  side.insertBefore(pinH, anchor); side.insertBefore(pinBox, anchor);
   side.insertBefore(expH, anchor); side.insertBefore(expBox, anchor);
+  function drawPins(){
+    pinBox.innerHTML='';
+    if(!pins.length){ pinBox.innerHTML='<div class="empty">'+t('emptyPins')+'</div>'; return; }
+    for(const pth of pins){
+      const sub=document.createElement('div'); sub.className='subfiles';
+      const node=entryEl('★ '+pinName(pth), async()=>{
+        if(sub.childNodes.length){ sub.innerHTML=''; return; }
+        await drawExplorer(sub, pth);
+      }, async()=>{ pins=pins.filter(x=>x!==pth); await kvSet('pins',pins); drawPins(); });
+      node.title=pth;
+      const w=document.createElement('div'); w.appendChild(node); w.appendChild(sub);
+      pinBox.appendChild(w);
+    }
+  }
+  drawPins();
   (async()=>{
     let drives=[];
     try{ drives=await T.core.invoke('list_drives'); }catch{}
@@ -762,7 +894,7 @@ if (T){
   cwBtn.style.cssText = 'font-size:11px';
   const cwLabel = () => { cwBtn.textContent = t('autoRec')+(clipWatch?' ▶':' ⏸'); cwBtn.classList.toggle('on', clipWatch); };
   $('btnClip').after(cwBtn); cwLabel();
-  refreshExtras = cwLabel;   // 언어 변경 시 라벨 갱신
+  refreshExtras = () => { cwLabel(); pinLbl(); };   // 언어 변경 시 라벨 갱신
   try{ await T.core.invoke('set_clip_watch', { on: clipWatch }); }catch{}
   cwBtn.onclick = async () => {
     clipWatch = !clipWatch;
@@ -779,7 +911,13 @@ if (T){
     });
   }catch{}
 
-  // 5) 빠른 번역 (선택 시에만 뜨는 작은 박스 — 온라인, 현재 UI 언어로. 로컬퍼스트라 비중 약함)
+  // 5) 빠른 번역 — 선택 시 🌐 버튼, 결과는 우측 독 번역 영역에 표시 (온라인. 로컬퍼스트라 비중 약함)
+  $('trSec').hidden=false;
+  const trSel=$('trLangSel');
+  for(const code of ['ko','en','ja','zh','fr','de','es']){
+    const o=document.createElement('option'); o.value=code; o.textContent=LANG_NAMES[code];
+    if(code===curLang) o.selected=true; trSel.appendChild(o);
+  }
   const trBox=document.createElement('div'); trBox.id='trbox'; trBox.hidden=true; document.body.appendChild(trBox);
   const hideTr=()=>{ trBox.hidden=true; };
   document.addEventListener('scroll',hideTr,true);
@@ -794,9 +932,11 @@ if (T){
       btn.textContent='🌐 '+t('translate');
       btn.onclick=async()=>{
         btn.textContent='🌐 …';
-        try{ const r=await T.core.invoke('translate_text',{text:sel,target:curLang});
-          trBox.innerHTML='<div class="trres">'+esc(r)+'</div>'; }
-        catch{ trBox.innerHTML='<div class="trres">'+t('trFail')+'</div>'; }
+        const res=$('trRes'); res.textContent='…';
+        if(dockCollapsed){ dockCollapsed=false; kvSet('dockCollapsed',false); applyDock(); }   // 결과 보이게 독 펼침
+        try{ res.textContent=await T.core.invoke('translate_text',{text:sel,target:trSel.value}); }
+        catch{ res.textContent=t('trFail'); }
+        hideTr();
       };
       trBox.appendChild(btn);
       trBox.style.left=Math.min(e.clientX, window.innerWidth-350)+'px';

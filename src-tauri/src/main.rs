@@ -73,6 +73,7 @@ fn is_openable(name: &str) -> bool {
         ".html", ".htm", ".css", ".scss", ".sass", ".less",
         ".sh", ".bash", ".zsh", ".ps1", ".bat", ".cmd", ".sql",
         ".gitignore", ".gitattributes", ".dockerignore", ".editorconfig", ".npmrc",
+        ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".bmp", ".ico",
     ];
     if EXTS.iter().any(|e| l.ends_with(e)) {
         return true;

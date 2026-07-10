@@ -2,6 +2,7 @@
 
 > 저장소 소유자(홍찬영)가 직접 손봐야 하는 "수동 조작" 부분 정리.
 > 일반 사용자 안내는 `README.md`.
+> 소규모 반복 수정은 G-레인(Gemini CLI — 규약 `F:\pharus\GEMINI.md`, 큐 `F:\pharus\g-lane.md`)으로 처리 가능. `[g-lane]` 커밋은 Claude/Codex 게이트 후에만 push.
 
 ---
 

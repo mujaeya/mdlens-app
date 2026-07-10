@@ -1,0 +1,42 @@
+<svg id="icon" width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1d2742"/>
+      <stop offset="1" stop-color="#0f1424"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".17"/>
+      <stop offset=".55" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 다크 네이비 라운드 사각 -->
+  <rect x="16" y="16" width="480" height="480" rx="104" fill="url(#bgg)"/>
+
+  <!-- 렌즈 밖 문서 줄 (축소된 원문) -->
+  <g stroke="#3b4667" stroke-width="13" stroke-linecap="round">
+    <line x1="118" y1="132" x2="398" y2="132"/>
+    <line x1="118" y1="182" x2="352" y2="182"/>
+    <line x1="118" y1="232" x2="392" y2="232"/>
+    <line x1="118" y1="282" x2="330" y2="282"/>
+    <line x1="118" y1="332" x2="378" y2="332"/>
+  </g>
+
+  <!-- 45° 핸들 -->
+  <line x1="326" y1="326" x2="424" y2="424" stroke="#7ee0ff" stroke-width="46" stroke-linecap="round"/>
+  <line x1="334" y1="334" x2="418" y2="418" stroke="#0f1424" stroke-width="14" stroke-linecap="round" opacity=".35"/>
+
+  <!-- 렌즈: 확대면 -->
+  <circle cx="232" cy="232" r="128" fill="#0c1120"/>
+  <!-- 렌즈 안 확대된 텍스트 줄 2개 -->
+  <g stroke-linecap="round">
+    <line x1="162" y1="206" x2="302" y2="206" stroke="#e9edf7" stroke-width="24"/>
+    <line x1="162" y1="206" x2="216" y2="206" stroke="#7ee0ff" stroke-width="24"/>
+    <line x1="162" y1="264" x2="266" y2="264" stroke="#e9edf7" stroke-width="24" opacity=".85"/>
+  </g>
+  <!-- 유리 하이라이트 -->
+  <circle cx="232" cy="232" r="128" fill="url(#glass)"/>
+  <!-- 시안 액센트 링 -->
+  <circle cx="232" cy="232" r="128" fill="none" stroke="#7ee0ff" stroke-width="18"/>
+  <circle cx="232" cy="232" r="141" fill="none" stroke="#7ee0ff" stroke-width="4" opacity=".32"/>
+</svg>
