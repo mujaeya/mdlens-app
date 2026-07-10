@@ -52,7 +52,9 @@
   .phead{display:flex;align-items:flex-end;gap:6px;padding:4px 6px 0;font-size:12px;
     color:var(--muted);border-bottom:1px solid var(--line);background:var(--side);min-height:28px}
   .ptabs{display:flex;gap:2px;overflow-x:auto;flex:1;min-width:0}
-  .ptab{display:flex;align-items:center;gap:5px;padding:4px 8px;font-size:12px;max-width:190px;
+  .ptabs::-webkit-scrollbar{display:none}   /* 탭줄엔 스크롤바 숨김 — 넘치면 휠로 스크롤 */
+  .ptab{display:flex;align-items:center;gap:5px;padding:4px 8px;font-size:12px;
+    flex:0 1 auto;min-width:56px;max-width:190px;
     border:1px solid var(--line);border-bottom:0;border-radius:6px 6px 0 0;
     background:var(--bg);color:var(--muted);cursor:pointer;white-space:nowrap}
   .ptab.on{background:var(--bg);color:var(--fg);border-color:var(--accent);border-bottom:2px solid var(--bg);margin-bottom:-1px}
@@ -102,10 +104,8 @@
   #dockToggle{border:0;background:none;padding:2px 4px;font-size:14px;color:var(--muted);
     cursor:pointer;align-self:flex-start}
   #dockToggle:hover{color:var(--accent)}
-  #trRes{white-space:pre-wrap;line-height:1.55;font-size:12.5px;padding:4px 6px;
-    min-height:36px;max-height:40vh;overflow:auto}
   #trLangSel{font:inherit;font-size:12px;padding:3px 6px;border:1px solid var(--line);
-    border-radius:6px;background:var(--bg);color:var(--fg);margin:0 4px}
+    border-radius:6px;background:var(--bg);color:var(--fg)}
   /* explorer pins */
   .entry .pin{color:var(--muted);visibility:hidden;padding:0 3px;flex-shrink:0}
   .entry:hover .pin{visibility:visible} .entry .pin:hover{color:var(--accent)}
@@ -140,6 +140,8 @@
     <button id="btnFontDn">A−</button><button id="btnFontUp">A+</button>
     <button id="btnPin" hidden data-i18n-title="ttPin" title="Pin">📌</button>
     <button id="btnEdit" data-i18n-title="ttEdit" title="Edit">Edit</button>
+    <button id="btnTrPage" hidden data-i18n="trPage" data-i18n-title="ttTrPage">Translate page</button>
+    <select id="trLangSel" hidden data-i18n-title="trTarget"></select>
     <button id="btnSave" data-i18n="save" data-i18n-title="ttSave" title="Save" hidden>Save</button>
     <span id="flash"></span>
     <select id="langSel" data-i18n-title="language" title="Language"></select>
@@ -152,11 +154,6 @@
   <h3><span data-i18n="hClips">Clipboard</span> <span style="text-transform:none" data-i18n="hClipsSub">(click to copy)</span></h3>
   <div class="btns"><button id="btnClip" data-i18n="saveClip" data-i18n-title="ttSaveClip">Save clip</button></div>
   <div id="clipList"></div>
-  <div id="trSec" hidden>
-    <h3 data-i18n="translate">Translate</h3>
-    <select id="trLangSel"></select>
-    <div id="trRes"></div>
-  </div>
 </aside>
 
 <script type="module">
@@ -313,13 +310,13 @@ const _TR={ko:["번역","번역 실패"],en:["Translate","Translation failed"],j
 for(const _k in _TR){ I18N[_k].translate=_TR[_k][0]; I18N[_k].trFail=_TR[_k][1]; }
 // v0.2 추가/교체 문자열 (핀 고정 · 📌 라벨 · 이미지 드롭 힌트)
 const _V2={
- en:{hPinned:"Pinned",emptyPins:"Pin folders with ☆",ttPinDir:"Pin folder to top",pinLabel:"On top",fPinOn:"This window now stays above all others ✓",dropHint:"Drop md · txt · pdf · docx · images here",ttDock:"Collapse/expand utility panel"},
- ko:{hPinned:"핀 고정",emptyPins:"폴더 옆 ☆로 고정",ttPinDir:"폴더를 상단에 핀 고정",pinLabel:"항상 위",fPinOn:"이 창이 다른 창들 위에 항상 표시됩니다 ✓",dropHint:"여기에 md · txt · pdf · docx · 이미지 드롭",ttDock:"유틸 패널 접기/펼치기"},
- ja:{hPinned:"ピン留め",emptyPins:"☆でフォルダを固定",ttPinDir:"フォルダを上部にピン留め",pinLabel:"最前面",fPinOn:"このウィンドウを常に最前面に表示します ✓",dropHint:"ここに md · txt · pdf · docx · 画像 をドロップ",ttDock:"ユーティリティパネルの開閉"},
- zh:{hPinned:"已固定",emptyPins:"用☆固定文件夹",ttPinDir:"将文件夹固定到顶部",pinLabel:"置顶",fPinOn:"此窗口将始终显示在最前 ✓",dropHint:"拖放 md · txt · pdf · docx · 图片 到此",ttDock:"收起/展开工具面板"},
- fr:{hPinned:"Épinglés",emptyPins:"Épinglez avec ☆",ttPinDir:"Épingler le dossier en haut",pinLabel:"1er plan",fPinOn:"Cette fenêtre reste au premier plan ✓",dropHint:"Déposez md · txt · pdf · docx · images ici",ttDock:"Réduire/déployer le panneau"},
- de:{hPinned:"Angeheftet",emptyPins:"Ordner mit ☆ anheften",ttPinDir:"Ordner oben anheften",pinLabel:"Immer oben",fPinOn:"Dieses Fenster bleibt immer im Vordergrund ✓",dropHint:"md · txt · pdf · docx · Bilder hierher ziehen",ttDock:"Panel ein-/ausklappen"},
- es:{hPinned:"Fijados",emptyPins:"Fija carpetas con ☆",ttPinDir:"Fijar carpeta arriba",pinLabel:"Visible",fPinOn:"Esta ventana se mantiene siempre visible ✓",dropHint:"Suelta md · txt · pdf · docx · imágenes aquí",ttDock:"Plegar/desplegar panel"}
+ en:{hPinned:"Pinned",emptyPins:"Pin folders with ☆",ttPinDir:"Pin folder to top",pinLabel:"On top",fPinOn:"This window now stays above all others ✓",dropHint:"Drop md · txt · pdf · docx · images here",ttDock:"Collapse/expand utility panel",trPage:"Translate page",ttTrPage:"Translate the whole document in place (Ctrl+Z to undo)",trTarget:"Translation target language",fTrApplied:"Translated — Ctrl+Z to undo"},
+ ko:{hPinned:"핀 고정",emptyPins:"폴더 옆 ☆로 고정",ttPinDir:"폴더를 상단에 핀 고정",pinLabel:"항상 위",fPinOn:"이 창이 다른 창들 위에 항상 표시됩니다 ✓",dropHint:"여기에 md · txt · pdf · docx · 이미지 드롭",ttDock:"유틸 패널 접기/펼치기",trPage:"페이지 번역",ttTrPage:"문서 전체를 번역해 본문에 반영 (Ctrl+Z 되돌리기)",trTarget:"번역 대상 언어",fTrApplied:"번역 반영됨 — Ctrl+Z로 되돌리기"},
+ ja:{hPinned:"ピン留め",emptyPins:"☆でフォルダを固定",ttPinDir:"フォルダを上部にピン留め",pinLabel:"最前面",fPinOn:"このウィンドウを常に最前面に表示します ✓",dropHint:"ここに md · txt · pdf · docx · 画像 をドロップ",ttDock:"ユーティリティパネルの開閉",trPage:"ページ翻訳",ttTrPage:"文書全体を翻訳して反映 (Ctrl+Zで元に戻す)",trTarget:"翻訳先の言語",fTrApplied:"翻訳を反映 — Ctrl+Zで戻す"},
+ zh:{hPinned:"已固定",emptyPins:"用☆固定文件夹",ttPinDir:"将文件夹固定到顶部",pinLabel:"置顶",fPinOn:"此窗口将始终显示在最前 ✓",dropHint:"拖放 md · txt · pdf · docx · 图片 到此",ttDock:"收起/展开工具面板",trPage:"翻译页面",ttTrPage:"翻译整篇文档并应用 (Ctrl+Z 撤销)",trTarget:"目标语言",fTrApplied:"已翻译 — Ctrl+Z 撤销"},
+ fr:{hPinned:"Épinglés",emptyPins:"Épinglez avec ☆",ttPinDir:"Épingler le dossier en haut",pinLabel:"1er plan",fPinOn:"Cette fenêtre reste au premier plan ✓",dropHint:"Déposez md · txt · pdf · docx · images ici",ttDock:"Réduire/déployer le panneau",trPage:"Traduire la page",ttTrPage:"Traduire tout le document (Ctrl+Z pour annuler)",trTarget:"Langue cible",fTrApplied:"Traduit — Ctrl+Z pour annuler"},
+ de:{hPinned:"Angeheftet",emptyPins:"Ordner mit ☆ anheften",ttPinDir:"Ordner oben anheften",pinLabel:"Immer oben",fPinOn:"Dieses Fenster bleibt immer im Vordergrund ✓",dropHint:"md · txt · pdf · docx · Bilder hierher ziehen",ttDock:"Panel ein-/ausklappen",trPage:"Seite übersetzen",ttTrPage:"Gesamtes Dokument übersetzen (Strg+Z zum Rückgängig)",trTarget:"Zielsprache",fTrApplied:"Übersetzt — Strg+Z zum Rückgängig"},
+ es:{hPinned:"Fijados",emptyPins:"Fija carpetas con ☆",ttPinDir:"Fijar carpeta arriba",pinLabel:"Visible",fPinOn:"Esta ventana se mantiene siempre visible ✓",dropHint:"Suelta md · txt · pdf · docx · imágenes aquí",ttDock:"Plegar/desplegar panel",trPage:"Traducir página",ttTrPage:"Traducir todo el documento (Ctrl+Z para deshacer)",trTarget:"Idioma de destino",fTrApplied:"Traducido — Ctrl+Z para deshacer"}
 };
 for(const _k in _V2) Object.assign(I18N[_k], _V2[_k]);
 let curLang=(await kvGet('lang'))||((navigator.language||'en').slice(0,2));
@@ -359,6 +356,8 @@ function makePane(idx){
     <div class="pbody"><article class="pview"></article><textarea class="pedit" hidden spellcheck="false"></textarea>
     <div class="drophint" data-i18n="dropHint">Drop md · txt · pdf · docx here</div></div>`;
   el.addEventListener('click',()=>setActive(idx));
+  const tb=el.querySelector('.ptabs');   // 탭 넘침 시 휠 가로 스크롤 (스크롤바는 숨김)
+  tb.addEventListener('wheel',e=>{ if(tb.scrollWidth>tb.clientWidth){ e.preventDefault(); tb.scrollLeft+=e.deltaY; } },{passive:false});
   el.addEventListener('dragover',e=>e.preventDefault());
   el.addEventListener('drop',e=>{ e.preventDefault(); e.stopPropagation(); setActive(idx);
     const d=tabDropData(e); if(d){ moveTab(d.p, d.t, idx, panes[idx].tabs.length); return; }   // 탭 드롭 = 이 칸 끝으로
@@ -534,7 +533,8 @@ function drawLists(){
   const fq=$('freqList'); fq.innerHTML='';
   const top=[...files].filter(f=>(f.count||0)>=2).sort((a,b)=>b.count-a.count).slice(0,5);
   if(!top.length) fq.innerHTML='<div class="empty">'+t('emptyFreq')+'</div>';
-  top.forEach(f=>fq.appendChild(entryEl(`⭐ ${f.name} (${f.count})`,()=>openHandle(f.handle))));
+  top.forEach(f=>fq.appendChild(entryEl(`⭐ ${f.name} (${f.count})`,()=>openHandle(f.handle),
+    async()=>{ files=files.filter(x=>x!==f); await kvSet('files',files); drawLists(); })));
 }
 async function listDir(h,depth=0,acc=[],prefix=''){
   if(acc.length>300) return acc;
@@ -594,12 +594,14 @@ function newFile(){
   toggleEdit();  // 바로 편집 모드
   flash(t('fNewDoc'));
 }
+let suppressClip=null;   // 클립 메모에서 복사한 텍스트는 자동기록에 재기록 안 함
 function drawClips(){
   const box=$('clipList'); box.innerHTML='';
   if(!clips.length){ box.innerHTML='<div class="empty">'+t('emptyClips')+'</div>'; return; }
   clips.forEach((c,idx)=>{
     const label=c.t.replace(/\s+/g,' ').slice(0,42)+(c.t.length>42?'…':'');
     box.appendChild(entryEl(label, async()=>{
+      suppressClip=c.t;
       try{ await navigator.clipboard.writeText(c.t); flash(t('fCopied')); }catch{ flash(t('fCopyFail')); }
     }, async()=>{ clips.splice(idx,1); await kvSet('clips',clips); drawClips(); }, 'clip'));
   });
@@ -612,6 +614,7 @@ function syncEditBtn(){
   $('btnEdit').disabled=!editable;
   $('btnEdit').textContent=s&&s.editing?t('view'):t('edit');
   $('btnSave').hidden=!(s&&s.editing);
+  $('btnTrPage').disabled=!editable||(s&&s.editing);   // 페이지 번역은 보기 모드의 md/txt만
 }
 function toggleEdit(){
   const p=panes[active], s=paneDoc(p);
@@ -714,6 +717,10 @@ addEventListener('keydown',e=>{
   if(e.ctrlKey&&e.key==='e'){ e.preventDefault(); toggleEdit(); }
   if(e.ctrlKey&&e.key==='o'){ e.preventDefault(); $('btnOpen').click(); }
   if(e.ctrlKey&&e.key==='n'){ e.preventDefault(); newFile(); }
+  if(e.ctrlKey&&e.key==='z'){   // 보기 모드 번역 반영 되돌리기 (편집 모드는 textarea 기본 undo)
+    const p=panes[active], s=p?paneDoc(p):null;
+    if(s&&!s.editing&&s.undo&&s.undo.length){ e.preventDefault(); s.raw=s.undo.pop(); renderActive(p); }
+  }
 });
 
 /* ================= boot ================= */
@@ -892,6 +899,7 @@ if (T){
   try{
     await T.event.listen('clip-added', ev => {
       const txt = ev.payload; if(!txt || !txt.trim()) return;
+      if(txt === suppressClip){ suppressClip = null; return; }   // 클립 메모에서 복사한 것 제외
       if(clips[0] && clips[0].t === txt) return;   // 연속 중복 제외
       clips.unshift({ t:txt, at: Date.now() }); clips = clips.slice(0, 50);
       kvSet('clips', clips); drawClips();
@@ -899,8 +907,9 @@ if (T){
   }catch{}
 
   // 5) 빠른 번역 — 선택 시 🌐 버튼, 결과는 우측 독 번역 영역에 표시 (온라인. 로컬퍼스트라 비중 약함)
-  $('trSec').hidden=false;
-  // 번역 대상 언어는 앱 UI 언어와 완전 분리 — 최초 1회만 UI 언어로 시드, 이후 독립 저장
+  // 번역 컨트롤(페이지 번역 + 대상 언어)은 상단바 편집 버튼 옆 — 네이티브 전용 노출.
+  // 대상 언어는 앱 UI 언어와 완전 분리: 최초 1회만 UI 언어로 시드, 이후 독립 저장.
+  $('btnTrPage').hidden=false; $('trLangSel').hidden=false;
   const trSel=$('trLangSel');
   const trLang=(await kvGet('trLang'))||curLang;
   for(const code of ['ko','en','ja','zh','fr','de','es']){
@@ -908,6 +917,29 @@ if (T){
     if(code===trLang) o.selected=true; trSel.appendChild(o);
   }
   trSel.onchange=()=>kvSet('trLang',trSel.value);
+  function pushUndo(s){ (s.undo??=[]).push(s.raw); if(s.undo.length>20) s.undo.shift(); }
+  async function translatePage(){   // 현재 문서 전체 번역 → 본문 반영 (Ctrl+Z 되돌리기)
+    const p=panes[active], s=paneDoc(p);
+    if(!s||(s.kind!=='md'&&s.kind!=='txt')||s.editing||!s.raw.trim()) return;
+    const btn=$('btnTrPage'); btn.disabled=true;
+    try{
+      const chunks=[]; let buf='';   // URL 길이 한계 회피용 줄 단위 분할
+      for(const line of s.raw.split('\n')){
+        if(buf && (buf+'\n'+line).length>1500){ chunks.push(buf); buf=line; }
+        else buf=buf?buf+'\n'+line:line;
+      }
+      if(buf) chunks.push(buf);
+      const out=[];
+      for(let i=0;i<chunks.length;i++){
+        btn.textContent='… '+(i+1)+'/'+chunks.length;
+        out.push(chunks[i].trim()?await T.core.invoke('translate_text',{text:chunks[i],target:trSel.value}):chunks[i]);
+      }
+      pushUndo(s); s.raw=out.join('\n');
+      renderActive(p); flash(t('fTrApplied'));
+    }catch{ flash(t('trFail')); }
+    btn.textContent=t('trPage'); btn.disabled=false; syncEditBtn();
+  }
+  $('btnTrPage').onclick=translatePage;
   const trBox=document.createElement('div'); trBox.id='trbox'; trBox.hidden=true; document.body.appendChild(trBox);
   const hideTr=()=>{ trBox.hidden=true; };
   document.addEventListener('scroll',hideTr,true);
@@ -920,13 +952,23 @@ if (T){
       trBox.innerHTML='';
       const btn=document.createElement('button');
       btn.textContent='🌐 '+t('translate');
-      btn.onclick=async()=>{
+      btn.onclick=async()=>{   // 선택 번역 → 본문 직접 반영 (원문 매칭 실패 시에만 팝업 표시)
         btn.textContent='🌐 …';
-        const res=$('trRes'); res.textContent='…';
-        if(dockCollapsed){ dockCollapsed=false; kvSet('dockCollapsed',false); applyDock(); }   // 결과 보이게 독 펼침
-        try{ res.textContent=await T.core.invoke('translate_text',{text:sel,target:trSel.value}); }
-        catch{ res.textContent=t('trFail'); }
-        hideTr();
+        try{
+          const r=await T.core.invoke('translate_text',{text:sel,target:trSel.value});
+          const p=panes[active], s=paneDoc(p);
+          let applied=false;
+          if(s&&!s.editing&&(s.kind==='md'||s.kind==='txt')){
+            const idx=s.raw.indexOf(sel);
+            if(idx>=0&&s.raw.indexOf(sel,idx+1)<0){   // 유일 매칭일 때만 안전 치환
+              pushUndo(s);
+              s.raw=s.raw.slice(0,idx)+r+s.raw.slice(idx+sel.length);
+              renderActive(p); flash(t('fTrApplied')); applied=true;
+            }
+          }
+          if(applied) hideTr();
+          else trBox.innerHTML='<div class="trres">'+esc(r)+'</div>';
+        }catch{ trBox.innerHTML='<div class="trres">'+t('trFail')+'</div>'; }
       };
       trBox.appendChild(btn);
       trBox.style.left=Math.min(e.clientX, window.innerWidth-350)+'px';
