@@ -39,11 +39,7 @@
   #topbar{display:flex;align-items:center;gap:6px;padding:7px 10px;
     border-bottom:1px solid var(--line);flex-wrap:wrap}
   #flash{font-size:12px;color:var(--accent);margin-left:auto}
-  #settings{position:absolute;top:42px;right:10px;z-index:20;background:var(--side);
-    border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:flex;
-    gap:8px;align-items:center;font-size:12px;box-shadow:0 6px 20px rgba(0,0,0,.25)}
-  #settings[hidden]{display:none !important}
-  #settings select{font:inherit;font-size:12px;padding:3px 6px;border:1px solid var(--line);
+  #langSel{font:inherit;font-size:12px;padding:3px 6px;border:1px solid var(--line);
     border-radius:6px;background:var(--bg);color:var(--fg)}
   #trbox{position:fixed;z-index:30;max-width:340px;background:var(--side);border:1px solid var(--line);
     border-radius:8px;padding:6px 8px;font-size:12.5px;box-shadow:0 6px 20px rgba(0,0,0,.28)}
@@ -96,7 +92,7 @@
   .pview .imgwrap.orig{text-align:left}
   .pview .imgwrap.orig img{max-width:none;max-height:none;cursor:zoom-out}
   /* right util dock */
-  #dock{width:264px;min-width:264px;height:100%;display:flex;flex-direction:column;
+  #dock{width:248px;min-width:248px;height:100%;display:flex;flex-direction:column;
     background:var(--side);border-left:1px solid var(--line);padding:10px;overflow-y:auto}
   #dock h3{font-size:11px;letter-spacing:.06em;color:var(--muted);margin:14px 4px 5px;text-transform:uppercase}
   #dock .btns{display:flex;gap:6px;flex-wrap:wrap}
@@ -114,11 +110,11 @@
   .entry .pin{color:var(--muted);visibility:hidden;padding:0 3px;flex-shrink:0}
   .entry:hover .pin{visibility:visible} .entry .pin:hover{color:var(--accent)}
   .entry .pin.on{visibility:visible;color:var(--accent)}
-  /* scrollbars */
-  ::-webkit-scrollbar{width:10px;height:10px}
+  /* scrollbars — 컴포넌트로 오인되지 않게 얇고 중립적으로 */
+  ::-webkit-scrollbar{width:8px;height:8px}
   ::-webkit-scrollbar-track{background:transparent}
   ::-webkit-scrollbar-thumb{background:var(--line);border-radius:6px;border:2px solid var(--bg)}
-  ::-webkit-scrollbar-thumb:hover{background:var(--accent)}
+  ::-webkit-scrollbar-thumb:hover{background:var(--muted)}
 </style>
 </head>
 <body>
@@ -145,18 +141,14 @@
     <button id="btnPin" hidden data-i18n-title="ttPin" title="Pin">📌</button>
     <button id="btnEdit" data-i18n-title="ttEdit" title="Edit">Edit</button>
     <button id="btnSave" data-i18n="save" data-i18n-title="ttSave" title="Save" hidden>Save</button>
-    <button id="btnSettings" data-i18n-title="ttSettings" title="Settings">⚙</button>
     <span id="flash"></span>
-  </div>
-  <div id="settings" hidden>
-    <label data-i18n="language">Language</label>
-    <select id="langSel"></select>
+    <select id="langSel" data-i18n-title="language" title="Language"></select>
   </div>
   <div id="panes"></div>
 </div>
 
 <aside id="dock">
-  <button id="dockToggle">»</button>
+  <button id="dockToggle" data-i18n-title="ttDock">»</button>
   <h3><span data-i18n="hClips">Clipboard</span> <span style="text-transform:none" data-i18n="hClipsSub">(click to copy)</span></h3>
   <div class="btns"><button id="btnClip" data-i18n="saveClip" data-i18n-title="ttSaveClip">Save clip</button></div>
   <div id="clipList"></div>
@@ -321,13 +313,13 @@ const _TR={ko:["번역","번역 실패"],en:["Translate","Translation failed"],j
 for(const _k in _TR){ I18N[_k].translate=_TR[_k][0]; I18N[_k].trFail=_TR[_k][1]; }
 // v0.2 추가/교체 문자열 (핀 고정 · 📌 라벨 · 이미지 드롭 힌트)
 const _V2={
- en:{hPinned:"Pinned",emptyPins:"Pin folders with ☆",ttPinDir:"Pin folder to top",pinLabel:"On top",fPinOn:"This window now stays above all others ✓",dropHint:"Drop md · txt · pdf · docx · images here"},
- ko:{hPinned:"핀 고정",emptyPins:"폴더 옆 ☆로 고정",ttPinDir:"폴더를 상단에 핀 고정",pinLabel:"항상 위",fPinOn:"이 창이 다른 창들 위에 항상 표시됩니다 ✓",dropHint:"여기에 md · txt · pdf · docx · 이미지 드롭"},
- ja:{hPinned:"ピン留め",emptyPins:"☆でフォルダを固定",ttPinDir:"フォルダを上部にピン留め",pinLabel:"最前面",fPinOn:"このウィンドウを常に最前面に表示します ✓",dropHint:"ここに md · txt · pdf · docx · 画像 をドロップ"},
- zh:{hPinned:"已固定",emptyPins:"用☆固定文件夹",ttPinDir:"将文件夹固定到顶部",pinLabel:"置顶",fPinOn:"此窗口将始终显示在最前 ✓",dropHint:"拖放 md · txt · pdf · docx · 图片 到此"},
- fr:{hPinned:"Épinglés",emptyPins:"Épinglez avec ☆",ttPinDir:"Épingler le dossier en haut",pinLabel:"1er plan",fPinOn:"Cette fenêtre reste au premier plan ✓",dropHint:"Déposez md · txt · pdf · docx · images ici"},
- de:{hPinned:"Angeheftet",emptyPins:"Ordner mit ☆ anheften",ttPinDir:"Ordner oben anheften",pinLabel:"Immer oben",fPinOn:"Dieses Fenster bleibt immer im Vordergrund ✓",dropHint:"md · txt · pdf · docx · Bilder hierher ziehen"},
- es:{hPinned:"Fijados",emptyPins:"Fija carpetas con ☆",ttPinDir:"Fijar carpeta arriba",pinLabel:"Visible",fPinOn:"Esta ventana se mantiene siempre visible ✓",dropHint:"Suelta md · txt · pdf · docx · imágenes aquí"}
+ en:{hPinned:"Pinned",emptyPins:"Pin folders with ☆",ttPinDir:"Pin folder to top",pinLabel:"On top",fPinOn:"This window now stays above all others ✓",dropHint:"Drop md · txt · pdf · docx · images here",ttDock:"Collapse/expand utility panel"},
+ ko:{hPinned:"핀 고정",emptyPins:"폴더 옆 ☆로 고정",ttPinDir:"폴더를 상단에 핀 고정",pinLabel:"항상 위",fPinOn:"이 창이 다른 창들 위에 항상 표시됩니다 ✓",dropHint:"여기에 md · txt · pdf · docx · 이미지 드롭",ttDock:"유틸 패널 접기/펼치기"},
+ ja:{hPinned:"ピン留め",emptyPins:"☆でフォルダを固定",ttPinDir:"フォルダを上部にピン留め",pinLabel:"最前面",fPinOn:"このウィンドウを常に最前面に表示します ✓",dropHint:"ここに md · txt · pdf · docx · 画像 をドロップ",ttDock:"ユーティリティパネルの開閉"},
+ zh:{hPinned:"已固定",emptyPins:"用☆固定文件夹",ttPinDir:"将文件夹固定到顶部",pinLabel:"置顶",fPinOn:"此窗口将始终显示在最前 ✓",dropHint:"拖放 md · txt · pdf · docx · 图片 到此",ttDock:"收起/展开工具面板"},
+ fr:{hPinned:"Épinglés",emptyPins:"Épinglez avec ☆",ttPinDir:"Épingler le dossier en haut",pinLabel:"1er plan",fPinOn:"Cette fenêtre reste au premier plan ✓",dropHint:"Déposez md · txt · pdf · docx · images ici",ttDock:"Réduire/déployer le panneau"},
+ de:{hPinned:"Angeheftet",emptyPins:"Ordner mit ☆ anheften",ttPinDir:"Ordner oben anheften",pinLabel:"Immer oben",fPinOn:"Dieses Fenster bleibt immer im Vordergrund ✓",dropHint:"md · txt · pdf · docx · Bilder hierher ziehen",ttDock:"Panel ein-/ausklappen"},
+ es:{hPinned:"Fijados",emptyPins:"Fija carpetas con ☆",ttPinDir:"Fijar carpeta arriba",pinLabel:"Visible",fPinOn:"Esta ventana se mantiene siempre visible ✓",dropHint:"Suelta md · txt · pdf · docx · imágenes aquí",ttDock:"Plegar/desplegar panel"}
 };
 for(const _k in _V2) Object.assign(I18N[_k], _V2[_k]);
 let curLang=(await kvGet('lang'))||((navigator.language||'en').slice(0,2));
@@ -717,11 +709,6 @@ for(const code of ['ko','en','ja','zh','fr','de','es']){
   if(code===curLang) o.selected=true; langSel.appendChild(o);
 }
 langSel.onchange=()=>setLang(langSel.value);
-$('btnSettings').onclick=()=>{ $('settings').hidden=!$('settings').hidden; };
-document.addEventListener('click',e=>{
-  if(!$('settings').hidden && !$('settings').contains(e.target) && e.target!==$('btnSettings'))
-    $('settings').hidden=true;
-});
 addEventListener('keydown',e=>{
   if(e.ctrlKey&&e.key==='s'){ e.preventDefault(); save(); }
   if(e.ctrlKey&&e.key==='e'){ e.preventDefault(); toggleEdit(); }
@@ -731,13 +718,13 @@ addEventListener('keydown',e=>{
 
 /* ================= boot ================= */
 const HELPS={
- en:`# MD Lens\n\nLightweight local document viewer.\n\n## Shortcuts\n\n| Action | How |\n|---|---|\n| New / Open | \`Ctrl+N\` / \`Ctrl+O\` · or **drag & drop** onto a pane |\n| Edit → Save | \`Ctrl+E\` → \`Ctrl+S\` |\n| Split | **1 / 2 / 3** at top — each pane has its own **tabs** |\n| Formats | md · txt (render/edit), pdf, docx, img |\n| Explorer *(app only)* | browse drives/folders in the left panel |\n| Clipboard auto-record *(app only)* | toggle next to "Save clip" |\n| Language | ⚙ top-right |\n`,
- ko:`# MD Lens\n\n가벼운 로컬 문서 뷰어.\n\n## 단축키\n\n| 동작 | 방법 |\n|---|---|\n| 새 파일 / 열기 | \`Ctrl+N\` / \`Ctrl+O\` · 또는 칸에 **드래그&드롭** |\n| 편집 → 저장 | \`Ctrl+E\` → \`Ctrl+S\` |\n| 분할 | 상단 **1 / 2 / 3** — 칸마다 **탭** 있음 |\n| 형식 | md · txt (렌더/편집), pdf, docx, img |\n| 탐색기 *(앱 전용)* | 왼쪽 패널에서 드라이브/폴더 탐색 |\n| 클립보드 자동기록 *(앱 전용)* | "클립 저장" 옆 토글 |\n| 언어 | 오른쪽 위 ⚙ |\n`,
- ja:`# MD Lens\n\n軽量なローカル文書ビューア。\n\n## ショートカット\n\n| 操作 | 方法 |\n|---|---|\n| 新規 / 開く | \`Ctrl+N\` / \`Ctrl+O\` · またはペインに**ドラッグ&ドロップ** |\n| 編集 → 保存 | \`Ctrl+E\` → \`Ctrl+S\` |\n| 分割 | 上部 **1 / 2 / 3** — 各ペインに**タブ** |\n| 形式 | md · txt (表示/編集), pdf, docx, img |\n| エクスプローラ *(アプリのみ)* | 左パネルでドライブ/フォルダ探索 |\n| クリップボード自動記録 *(アプリのみ)* | 「クリップ保存」隣のトグル |\n| 言語 | 右上 ⚙ |\n`,
- zh:`# MD Lens\n\n轻量本地文档查看器。\n\n## 快捷键\n\n| 操作 | 方法 |\n|---|---|\n| 新建 / 打开 | \`Ctrl+N\` / \`Ctrl+O\` · 或**拖放**到分屏 |\n| 编辑 → 保存 | \`Ctrl+E\` → \`Ctrl+S\` |\n| 分屏 | 顶部 **1 / 2 / 3** — 每个分屏有**标签页** |\n| 格式 | md · txt (渲染/编辑), pdf, docx, img |\n| 资源管理器 *(仅应用)* | 在左栏浏览驱动器/文件夹 |\n| 剪贴板自动记录 *(仅应用)* | "保存剪贴"旁的开关 |\n| 语言 | 右上角 ⚙ |\n`,
- fr:`# MD Lens\n\nVisionneuse de documents locale et légère.\n\n## Raccourcis\n\n| Action | Comment |\n|---|---|\n| Nouveau / Ouvrir | \`Ctrl+N\` / \`Ctrl+O\` · ou **glisser-déposer** |\n| Éditer → Enreg. | \`Ctrl+E\` → \`Ctrl+S\` |\n| Diviser | **1 / 2 / 3** en haut — chaque volet a ses **onglets** |\n| Formats | md · txt (rendu/édition), pdf, docx, img |\n| Explorateur *(app)* | parcourir disques/dossiers à gauche |\n| Auto-enreg. presse-papiers *(app)* | bouton près de « Sauver clip » |\n| Langue | ⚙ en haut à droite |\n`,
- de:`# MD Lens\n\nLeichter lokaler Dokument-Viewer.\n\n## Tastenkürzel\n\n| Aktion | Wie |\n|---|---|\n| Neu / Öffnen | \`Strg+N\` / \`Strg+O\` · oder **Ziehen & Ablegen** |\n| Bearb. → Speichern | \`Strg+E\` → \`Strg+S\` |\n| Teilen | **1 / 2 / 3** oben — jedes Feld hat eigene **Tabs** |\n| Formate | md · txt (Anzeige/Bearb.), pdf, docx, img |\n| Explorer *(App)* | Laufwerke/Ordner links durchsuchen |\n| Zwischenablage-Auto *(App)* | Schalter neben „Clip sichern" |\n| Sprache | ⚙ oben rechts |\n`,
- es:`# MD Lens\n\nVisor de documentos local y ligero.\n\n## Atajos\n\n| Acción | Cómo |\n|---|---|\n| Nuevo / Abrir | \`Ctrl+N\` / \`Ctrl+O\` · o **arrastrar y soltar** |\n| Editar → Guardar | \`Ctrl+E\` → \`Ctrl+S\` |\n| Dividir | **1 / 2 / 3** arriba — cada panel tiene **pestañas** |\n| Formatos | md · txt (render/edición), pdf, docx, img |\n| Explorador *(app)* | explora discos/carpetas a la izquierda |\n| Auto-registro portapapeles *(app)* | botón junto a "Guardar clip" |\n| Idioma | ⚙ arriba a la derecha |\n`
+ en:`# MD Lens\n\nLightweight local document viewer.\n\n## Shortcuts\n\n| Action | How |\n|---|---|\n| New / Open | \`Ctrl+N\` / \`Ctrl+O\` · or **drag & drop** onto a pane |\n| Edit → Save | \`Ctrl+E\` → \`Ctrl+S\` |\n| Split | **1 / 2 / 3** at top — each pane has its own **tabs** |\n| Formats | md · txt (render/edit), pdf, docx, img |\n| Explorer *(app only)* | browse drives/folders in the left panel |\n| Clipboard auto-record *(app only)* | toggle next to "Save clip" |\n| Language | dropdown at top-right |\n`,
+ ko:`# MD Lens\n\n가벼운 로컬 문서 뷰어.\n\n## 단축키\n\n| 동작 | 방법 |\n|---|---|\n| 새 파일 / 열기 | \`Ctrl+N\` / \`Ctrl+O\` · 또는 칸에 **드래그&드롭** |\n| 편집 → 저장 | \`Ctrl+E\` → \`Ctrl+S\` |\n| 분할 | 상단 **1 / 2 / 3** — 칸마다 **탭** 있음 |\n| 형식 | md · txt (렌더/편집), pdf, docx, img |\n| 탐색기 *(앱 전용)* | 왼쪽 패널에서 드라이브/폴더 탐색 |\n| 클립보드 자동기록 *(앱 전용)* | "클립 저장" 옆 토글 |\n| 언어 | 오른쪽 위 드롭다운 |\n`,
+ ja:`# MD Lens\n\n軽量なローカル文書ビューア。\n\n## ショートカット\n\n| 操作 | 方法 |\n|---|---|\n| 新規 / 開く | \`Ctrl+N\` / \`Ctrl+O\` · またはペインに**ドラッグ&ドロップ** |\n| 編集 → 保存 | \`Ctrl+E\` → \`Ctrl+S\` |\n| 分割 | 上部 **1 / 2 / 3** — 各ペインに**タブ** |\n| 形式 | md · txt (表示/編集), pdf, docx, img |\n| エクスプローラ *(アプリのみ)* | 左パネルでドライブ/フォルダ探索 |\n| クリップボード自動記録 *(アプリのみ)* | 「クリップ保存」隣のトグル |\n| 言語 | 右上のドロップダウン |\n`,
+ zh:`# MD Lens\n\n轻量本地文档查看器。\n\n## 快捷键\n\n| 操作 | 方法 |\n|---|---|\n| 新建 / 打开 | \`Ctrl+N\` / \`Ctrl+O\` · 或**拖放**到分屏 |\n| 编辑 → 保存 | \`Ctrl+E\` → \`Ctrl+S\` |\n| 分屏 | 顶部 **1 / 2 / 3** — 每个分屏有**标签页** |\n| 格式 | md · txt (渲染/编辑), pdf, docx, img |\n| 资源管理器 *(仅应用)* | 在左栏浏览驱动器/文件夹 |\n| 剪贴板自动记录 *(仅应用)* | "保存剪贴"旁的开关 |\n| 语言 | 右上角下拉框 |\n`,
+ fr:`# MD Lens\n\nVisionneuse de documents locale et légère.\n\n## Raccourcis\n\n| Action | Comment |\n|---|---|\n| Nouveau / Ouvrir | \`Ctrl+N\` / \`Ctrl+O\` · ou **glisser-déposer** |\n| Éditer → Enreg. | \`Ctrl+E\` → \`Ctrl+S\` |\n| Diviser | **1 / 2 / 3** en haut — chaque volet a ses **onglets** |\n| Formats | md · txt (rendu/édition), pdf, docx, img |\n| Explorateur *(app)* | parcourir disques/dossiers à gauche |\n| Auto-enreg. presse-papiers *(app)* | bouton près de « Sauver clip » |\n| Langue | menu en haut à droite |\n`,
+ de:`# MD Lens\n\nLeichter lokaler Dokument-Viewer.\n\n## Tastenkürzel\n\n| Aktion | Wie |\n|---|---|\n| Neu / Öffnen | \`Strg+N\` / \`Strg+O\` · oder **Ziehen & Ablegen** |\n| Bearb. → Speichern | \`Strg+E\` → \`Strg+S\` |\n| Teilen | **1 / 2 / 3** oben — jedes Feld hat eigene **Tabs** |\n| Formate | md · txt (Anzeige/Bearb.), pdf, docx, img |\n| Explorer *(App)* | Laufwerke/Ordner links durchsuchen |\n| Zwischenablage-Auto *(App)* | Schalter neben „Clip sichern" |\n| Sprache | Dropdown oben rechts |\n`,
+ es:`# MD Lens\n\nVisor de documentos local y ligero.\n\n## Atajos\n\n| Acción | Cómo |\n|---|---|\n| Nuevo / Abrir | \`Ctrl+N\` / \`Ctrl+O\` · o **arrastrar y soltar** |\n| Editar → Guardar | \`Ctrl+E\` → \`Ctrl+S\` |\n| Dividir | **1 / 2 / 3** arriba — cada panel tiene **pestañas** |\n| Formatos | md · txt (render/edición), pdf, docx, img |\n| Explorador *(app)* | explora discos/carpetas a la izquierda |\n| Auto-registro portapapeles *(app)* | botón junto a "Guardar clip" |\n| Idioma | menú arriba a la derecha |\n`
 };
 layoutPanes(paneCount);
 applyLang();
@@ -753,7 +740,7 @@ function applyDock(){
   dock.classList.toggle('collapsed',dockCollapsed);
   dockToggle.textContent=dockCollapsed?'«':'»';
 }
-dockToggle.onclick=async()=>{ dockCollapsed=!dockCollapsed; await kvSet('dockCollapsed',dockCollapsed); applyDock(); };
+dockToggle.onclick=()=>{ dockCollapsed=!dockCollapsed; applyDock(); kvSet('dockCollapsed',dockCollapsed); };   // UI 먼저, 저장은 뒤에
 applyDock();
 
 /* ---------- Tauri 네이티브 앱 모드 (브라우저에선 window.__TAURI__ 없음 → 스킵) ---------- */
@@ -913,11 +900,14 @@ if (T){
 
   // 5) 빠른 번역 — 선택 시 🌐 버튼, 결과는 우측 독 번역 영역에 표시 (온라인. 로컬퍼스트라 비중 약함)
   $('trSec').hidden=false;
+  // 번역 대상 언어는 앱 UI 언어와 완전 분리 — 최초 1회만 UI 언어로 시드, 이후 독립 저장
   const trSel=$('trLangSel');
+  const trLang=(await kvGet('trLang'))||curLang;
   for(const code of ['ko','en','ja','zh','fr','de','es']){
     const o=document.createElement('option'); o.value=code; o.textContent=LANG_NAMES[code];
-    if(code===curLang) o.selected=true; trSel.appendChild(o);
+    if(code===trLang) o.selected=true; trSel.appendChild(o);
   }
+  trSel.onchange=()=>kvSet('trLang',trSel.value);
   const trBox=document.createElement('div'); trBox.id='trbox'; trBox.hidden=true; document.body.appendChild(trBox);
   const hideTr=()=>{ trBox.hidden=true; };
   document.addEventListener('scroll',hideTr,true);
