@@ -168,6 +168,19 @@ fn main() {
     let watch_for_thread = watch.clone();
 
     tauri::Builder::default()
+        // 단일 인스턴스: 이미 열려 있으면 두 번째 실행의 파일 인자를 기존 창으로 넘기고 종료 (새 창 금지)
+        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+            if let Some(p) = argv
+                .get(1)
+                .filter(|a| std::path::Path::new(a.as_str()).is_file())
+            {
+                let _ = app.emit("open-path", p.clone());
+            }
+            if let Some(w) = app.get_webview_window("main") {
+                let _ = w.unminimize();
+                let _ = w.set_focus();
+            }
+        }))
         .manage(LaunchPath(Mutex::new(arg)))
         .manage(ClipWatch(watch))
         .setup(move |app| {

@@ -809,6 +809,14 @@ if (T){
       addTab(p, doc);
     }catch(e){ flash(t('fOpenFail')+': '+e); }
   }
+  // 단일 인스턴스: 두 번째 실행(더블클릭 등)의 파일 인자를 기존 창의 탭으로 받음
+  try{
+    await T.event.listen('open-path', ev=>{
+      const pth=String(ev.payload||''); if(!pth) return;
+      const name=pth.replace(/[\\/]+$/,'').split(/[\\/]/).pop()||pth;
+      openNativePath(pth, name);
+    });
+  }catch{}
   // v0.2: 탐색기 핀 고정 (경로 문자열을 kv에 저장 — handle 불필요)
   let pins = (await kvGet('pins')) || [];
   const pinName = pth => pth.replace(/[\\/]+$/,'').split(/[\\/]/).pop() || pth;
