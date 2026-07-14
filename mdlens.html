@@ -110,6 +110,11 @@
   .entry .pin{color:var(--muted);visibility:hidden;padding:0 3px;flex-shrink:0}
   .entry:hover .pin{visibility:visible} .entry .pin:hover{color:var(--accent)}
   .entry .pin.on{visibility:visible;color:var(--accent)}
+  /* 탭 우클릭 컨텍스트 메뉴 */
+  .ctxmenu{position:fixed;z-index:40;background:var(--side);border:1px solid var(--line);
+    border-radius:8px;padding:4px;min-width:150px;box-shadow:0 8px 24px rgba(0,0,0,.3)}
+  .ctxitem{padding:6px 12px;font-size:12.5px;border-radius:5px;cursor:pointer;white-space:nowrap}
+  .ctxitem:hover{background:var(--accent);color:#fff}
   /* scrollbars — 컴포넌트로 오인되지 않게 얇고 중립적으로 */
   ::-webkit-scrollbar{width:8px;height:8px}
   ::-webkit-scrollbar-track{background:transparent}
@@ -319,6 +324,17 @@ const _V2={
  es:{hPinned:"Fijados",emptyPins:"Fija carpetas con ☆",ttPinDir:"Fijar carpeta arriba",pinLabel:"Visible",fPinOn:"Esta ventana se mantiene siempre visible ✓",dropHint:"Suelta md · txt · pdf · docx · imágenes aquí",ttDock:"Plegar/desplegar panel",trPage:"Traducir página",ttTrPage:"Traducir todo el documento (Ctrl+Z para deshacer)",trTarget:"Idioma de destino",fTrApplied:"Traducido — Ctrl+Z para deshacer"}
 };
 for(const _k in _V2) Object.assign(I18N[_k], _V2[_k]);
+// v0.2.2 탭 우클릭 메뉴
+const _V3={
+ en:{ctxSave:"Save",ctxSaveAs:"Save as…",ctxClose:"Close tab"},
+ ko:{ctxSave:"저장",ctxSaveAs:"다른 이름으로 저장…",ctxClose:"탭 닫기"},
+ ja:{ctxSave:"保存",ctxSaveAs:"名前を付けて保存…",ctxClose:"タブを閉じる"},
+ zh:{ctxSave:"保存",ctxSaveAs:"另存为…",ctxClose:"关闭标签"},
+ fr:{ctxSave:"Enregistrer",ctxSaveAs:"Enregistrer sous…",ctxClose:"Fermer l'onglet"},
+ de:{ctxSave:"Speichern",ctxSaveAs:"Speichern unter…",ctxClose:"Tab schließen"},
+ es:{ctxSave:"Guardar",ctxSaveAs:"Guardar como…",ctxClose:"Cerrar pestaña"}
+};
+for(const _k in _V3) Object.assign(I18N[_k], _V3[_k]);
 let curLang=(await kvGet('lang'))||((navigator.language||'en').slice(0,2));
 if(!I18N[curLang]) curLang='en';
 function t(k){ return (I18N[curLang]&&I18N[curLang][k]) ?? I18N.en[k] ?? k; }
@@ -380,6 +396,7 @@ function renderTabbar(p){
     tab.ondragstart=e=>{ e.dataTransfer.setData('application/x-mdlens-tab', JSON.stringify({p:panes.indexOf(p), t:i})); e.dataTransfer.effectAllowed='move'; };
     tab.ondragover=e=>{ if([...e.dataTransfer.types].includes('application/x-mdlens-tab')){ e.preventDefault(); e.stopPropagation(); } };
     tab.ondrop=e=>{ const d=tabDropData(e); if(!d) return; e.preventDefault(); e.stopPropagation(); moveTab(d.p, d.t, panes.indexOf(p), i); };
+    tab.oncontextmenu=e=>{ e.preventDefault(); e.stopPropagation(); showTabMenu(p, i, e.clientX, e.clientY); };
     const nm=document.createElement('span'); nm.className='ptname'; nm.textContent=t.name; tab.appendChild(nm);
     const x=document.createElement('span'); x.className='tx'; x.textContent='✕';
     x.onclick=e=>{ e.stopPropagation(); closeTab(p,i); }; tab.appendChild(x);
@@ -625,36 +642,71 @@ function toggleEdit(){
   if(s.editing) p.edit.focus();
   syncEditBtn();
 }
-async function save(){
-  const p=panes[active], s=paneDoc(p);
-  if(!s||!s.editing) return;
-  const text=p.edit.value;
+function docText(p,s){ return s.editing ? p.edit.value : s.raw; }   // 편집 중이면 최신 입력값
+function isSavable(s){ return s && (s.kind==='md'||s.kind==='txt'); }
+
+// 저장: 기존 경로/핸들 있으면 그 자리에, 없으면 "다른 이름으로 저장"으로 넘김
+async function saveDoc(p,s){
+  if(!isSavable(s)) return;
+  const text=docText(p,s);
   if(s.tauriPath && window.__TAURI__){
-    try{
-      await window.__TAURI__.core.invoke('save_file',{path:s.tauriPath,content:text});
-      s.raw=text; flash(t('fSaved')); return;
-    }catch(e){ flash(t('fSaveFail')+': '+e); return; }
+    try{ await window.__TAURI__.core.invoke('save_file',{path:s.tauriPath,content:text}); s.raw=text; flash(t('fSaved')); }
+    catch(e){ flash(t('fSaveFail')+': '+e); }
+    return;
   }
-  if(s.handle&&await ensurePerm(s.handle,'readwrite')){
-    const w=await s.handle.createWritable(); await w.write(text); await w.close();
-    s.raw=text; flash(t('fSaved'));
+  if(s.handle && await ensurePerm(s.handle,'readwrite')){
+    const w=await s.handle.createWritable(); await w.write(text); await w.close(); s.raw=text; flash(t('fSaved')); return;
+  }
+  await saveAsDoc(p,s);   // 대상 없음 = 새 파일 → 위치 지정 저장
+}
+
+// 다른 이름으로 저장: 네이티브는 현재 파일 폴더에서 시작하는 저장 다이얼로그, 브라우저는 파일 피커/다운로드
+async function saveAsDoc(p,s){
+  if(!isSavable(s)) return;
+  const text=docText(p,s), T=window.__TAURI__;
+  if(T){
+    const dir = s.tauriPath ? s.tauriPath.replace(/[\\/][^\\/]*$/,'') : '';
+    try{
+      const newPath = await T.core.invoke('save_file_as',{ defaultDir:dir, defaultName:s.name||t('untitled'), content:text });
+      if(!newPath) return;   // 사용자 취소
+      s.tauriPath=newPath; s.handle=null; s.name=newPath.replace(/^.*[\\/]/,''); s.raw=text;
+      renderTabbar(p); flash(t('fSaved'));
+    }catch(e){ flash(t('fSaveFail')+': '+e); }
   } else if('showSaveFilePicker' in window){
-    // 새 파일 or 핸들 없는 경우 = 다른 이름으로 저장(위치 지정)
     try{
       const h=await window.showSaveFilePicker({ suggestedName:s.name||t('untitled'),
         types:[{description:'document',accept:{'text/markdown':['.md','.markdown'],'text/plain':['.txt']}}] });
       const w=await h.createWritable(); await w.write(text); await w.close();
-      s.handle=h; s.name=h.name; s.raw=text;
-      renderTabbar(p);   // 탭 이름 갱신
-      await pushFile(h, h.name);
-      flash(t('fSaved'));
+      s.handle=h; s.name=h.name; s.raw=text; renderTabbar(p); await pushFile(h,h.name); flash(t('fSaved'));
     }catch{}
   } else {
     const a=document.createElement('a');
-    a.href=URL.createObjectURL(new Blob([text],{type:'text/plain'}));
-    a.download=s.name||t('untitled'); a.click();
+    a.href=URL.createObjectURL(new Blob([text],{type:'text/plain'})); a.download=s.name||t('untitled'); a.click();
     s.raw=text; flash(t('fDownloaded'));
   }
+}
+async function save(){ const p=panes[active], s=paneDoc(p); if(s) await saveDoc(p,s); }
+
+/* 탭 우클릭 컨텍스트 메뉴 */
+let tabMenuEl=null;
+function hideTabMenu(){ if(tabMenuEl){ tabMenuEl.remove(); tabMenuEl=null; } }
+function showTabMenu(p,i,x,y){
+  hideTabMenu();
+  setActive(panes.indexOf(p)); activateTab(p,i);
+  const s=p.tabs[i], sav=isSavable(s);
+  const m=document.createElement('div'); m.className='ctxmenu';
+  const rows=[
+    sav?{label:t('ctxSave'),fn:()=>saveDoc(p,s)}:null,
+    sav?{label:t('ctxSaveAs'),fn:()=>saveAsDoc(p,s)}:null,
+    {label:t('ctxClose'),fn:()=>closeTab(p,i)},
+  ].filter(Boolean);
+  for(const r of rows){
+    const it=document.createElement('div'); it.className='ctxitem'; it.textContent=r.label;
+    it.onclick=()=>{ hideTabMenu(); r.fn(); }; m.appendChild(it);
+  }
+  document.body.appendChild(m); tabMenuEl=m;
+  m.style.left=Math.min(x,window.innerWidth-m.offsetWidth-4)+'px';
+  m.style.top=Math.min(y,window.innerHeight-m.offsetHeight-4)+'px';
 }
 
 /* ================= events ================= */
@@ -712,7 +764,13 @@ for(const code of ['ko','en','ja','zh','fr','de','es']){
   if(code===curLang) o.selected=true; langSel.appendChild(o);
 }
 langSel.onchange=()=>setLang(langSel.value);
+// WebView2 기본 우클릭 메뉴 차단(편집창은 복사/붙여넣기 위해 예외) + 탭 메뉴 닫기
+document.addEventListener('contextmenu',e=>{ if(!e.target.closest('.pedit')) e.preventDefault(); });
+document.addEventListener('click',hideTabMenu);
+document.addEventListener('scroll',hideTabMenu,true);
 addEventListener('keydown',e=>{
+  if(e.key==='Escape') hideTabMenu();
+  if(e.ctrlKey&&(e.key==='s'||e.key==='S')&&e.shiftKey){ e.preventDefault(); const p=panes[active],s=paneDoc(p); if(s) saveAsDoc(p,s); return; }
   if(e.ctrlKey&&e.key==='s'){ e.preventDefault(); save(); }
   if(e.ctrlKey&&e.key==='e'){ e.preventDefault(); toggleEdit(); }
   if(e.ctrlKey&&e.key==='o'){ e.preventDefault(); $('btnOpen').click(); }

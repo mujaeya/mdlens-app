@@ -40,6 +40,30 @@ fn save_file(path: String, content: String) -> Result<(), String> {
     std::fs::write(&path, content).map_err(|e| e.to_string())
 }
 
+/// 다른 이름으로 저장: 네이티브 저장 다이얼로그(현재 파일 폴더에서 시작) → 선택 경로에 기록.
+/// 반환: 저장한 경로(Some) / 사용자가 취소하면 None.
+#[tauri::command]
+fn save_file_as(
+    app: tauri::AppHandle,
+    default_dir: Option<String>,
+    default_name: String,
+    content: String,
+) -> Result<Option<String>, String> {
+    use tauri_plugin_dialog::DialogExt;
+    let mut dialog = app.dialog().file().set_file_name(default_name);
+    if let Some(dir) = default_dir.filter(|s| !s.is_empty()) {
+        dialog = dialog.set_directory(dir);
+    }
+    match dialog.blocking_save_file() {
+        Some(fp) => {
+            let path = fp.to_string();
+            std::fs::write(&path, content).map_err(|e| e.to_string())?;
+            Ok(Some(path))
+        }
+        None => Ok(None),
+    }
+}
+
 #[derive(serde::Serialize)]
 struct DirEntry {
     name: String,
@@ -168,6 +192,7 @@ fn main() {
     let watch_for_thread = watch.clone();
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         // 단일 인스턴스: 이미 열려 있으면 두 번째 실행의 파일 인자를 기존 창으로 넘기고 종료 (새 창 금지)
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
             if let Some(p) = argv
@@ -211,6 +236,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             launch_file,
             save_file,
+            save_file_as,
             list_drives,
             read_dir,
             read_text_at,
